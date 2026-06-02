@@ -24,14 +24,19 @@
   --color-info: #3b82f6;
 
   /* Tipografía */
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-sans: 'Inter Variable', 'Inter', system-ui, sans-serif;
+  --font-display: 'Fraunces Variable', 'Fraunces', Georgia, serif;
 
   /* Radios de borde */
   --radius-card: 1rem;
   --radius-btn: 0.875rem;
   --radius-pill: 9999px;
 
-  /* Sombras */
+  /* Escala de elevación (profundidad por capas) */
+  --shadow-sm: 0 1px 2px 0 rgba(45, 42, 38, 0.06), 0 1px 3px 0 rgba(45, 42, 38, 0.05);
+  --shadow-md: 0 2px 12px 0 rgba(45, 42, 38, 0.08);
+  --shadow-lg: 0 8px 28px -6px rgba(45, 42, 38, 0.14);
+  --shadow-xl: 0 18px 50px -12px rgba(45, 42, 38, 0.22);
   --shadow-card: 0 2px 12px 0 rgba(45, 42, 38, 0.08);
   --shadow-btn: 0 4px 14px 0 rgba(224, 89, 54, 0.35);
 }
@@ -91,10 +96,53 @@ body {
    SCROLL SUAVE Y SCROLLBAR OCULTA (Mobile UX)
    ============================================ */
 
-.scroll-hidden {
+.scroll-hidden,
+.no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-.scroll-hidden::-webkit-scrollbar {
+.scroll-hidden::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* ============================================
+   TIPOGRAFÍA DISPLAY (títulos con carácter)
+   ============================================ */
+
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  letter-spacing: -0.01em;
+}
+
+/* ============================================
+   MOTIVO ANDINO SUTIL (acento textil geométrico)
+   Patrón de chevrones muy tenue para headers / estados vacíos.
+   ============================================ */
+
+.andean-motif {
+  background-image: repeating-linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.06) 0px,
+      rgba(255, 255, 255, 0.06) 2px,
+      transparent 2px,
+      transparent 10px
+    ),
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.05) 0px,
+      rgba(255, 255, 255, 0.05) 2px,
+      transparent 2px,
+      transparent 10px
+    );
+}
+
+/* Respeta usuarios que prefieren menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

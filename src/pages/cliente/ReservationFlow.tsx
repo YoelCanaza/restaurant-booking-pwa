@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { Wallet } from 'lucide-react'
+import { Info } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
+import { useAuthStore } from '../../store/useAuthStore'
+import { useToastStore } from '../../store/useToastStore'
 import { useCurrentUser } from '../../hooks'
 import StepIndicator from '../../components/ui/StepIndicator'
 import CircleSelector from '../../components/ui/CircleSelector'
@@ -36,6 +38,8 @@ const DATES = getNextDays()
 export default function ReservationFlow() {
   const user = useCurrentUser()
   const addReserva = useAppStore((s) => s.addReserva)
+  const asegurarSesionCliente = useAuthStore((s) => s.asegurarSesionCliente)
+  const addToast = useToastStore((s) => s.addToast)
   
   const [step, setStep] = useState(1)
   const [isSuccess, setIsSuccess] = useState(false)
@@ -47,7 +51,7 @@ export default function ReservationFlow() {
   const [mesaId, setMesaId] = useState<string | null>(null)
   const [nombre, setNombre] = useState(user?.name || '')
   const [telefono, setTelefono] = useState(user?.phone || '')
-  const [metodoPago, setMetodoPago] = useState<'tarjeta' | 'yape'>('tarjeta')
+  const [pisoReserva, setPisoReserva] = useState(1)
 
   const navigate = useNavigate()
 
@@ -58,19 +62,34 @@ export default function ReservationFlow() {
   const disponibilidad = useMemo(() => getDisponibilidadMesas(state, fecha, hora), [state, fecha, hora])
 
   const handleConfirm = () => {
-    addReserva({
-      id: `res_${Date.now()}`,
-      userId: user!.id,
-      fecha,
-      hora,
-      personas,
-      nombre,
-      telefono,
-      mesaId: mesaId || undefined,
-      estado: 'pendiente',
-      createdAt: new Date().toISOString()
-    })
-    setIsSuccess(true)
+    // Identidad: sesión existente o registro invisible del invitado (con sus datos)
+    let userId = user?.id
+    if (!user) {
+      const r = asegurarSesionCliente({ name: nombre, phone: telefono })
+      if (!r.ok) {
+        addToast(r.error ?? 'Revisa tus datos de contacto', 'error')
+        return
+      }
+      userId = r.userId
+    }
+    const result = addReserva(
+      {
+        id: `res_${Date.now()}`,
+        userId: userId!,
+        fecha,
+        hora,
+        personas,
+        nombre,
+        telefono,
+        mesaId: mesaId || undefined,
+      },
+      userId!
+    )
+    if (result.ok) {
+      setIsSuccess(true)
+    } else {
+      addToast(result.error ?? 'No se pudo crear la reserva', 'error')
+    }
   }
 
   if (isSuccess) {
@@ -117,17 +136,18 @@ export default function ReservationFlow() {
               className="flex flex-col gap-10"
             >
               <section>
-                <h3 className="text-xl font-bold text-carbon mb-6 text-center">¿Cuántas personas?</h3>
-                <CircleSelector 
-                  value={personas} 
-                  onChange={setPersonas} 
-                  min={1} 
-                  max={10} 
+                <h3 className="font-display text-xl font-bold text-carbon mb-6 text-center">¿Cuántas personas?</h3>
+                <CircleSelector
+                  value={personas}
+                  onChange={setPersonas}
+                  min={1}
+                  max={10}
+                  unit="persona"
                 />
               </section>
 
               <section>
-                <h3 className="text-lg font-bold text-carbon mb-4">¿Qué día?</h3>
+                <h3 className="font-display text-lg font-bold text-carbon mb-4">¿Qué día?</h3>
                 <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar -mx-6 px-6">
                   {DATES.map(d => (
                     <Chip 
@@ -141,7 +161,7 @@ export default function ReservationFlow() {
               </section>
 
               <section>
-                <h3 className="text-lg font-bold text-carbon mb-4">¿A qué hora?</h3>
+                <h3 className="font-display text-lg font-bold text-carbon mb-4">¿A qué hora?</h3>
                 <div className="flex flex-wrap gap-3">
                   {HOURS.map(h => (
                     <Chip 
@@ -175,17 +195,36 @@ export default function ReservationFlow() {
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
               className="flex flex-col gap-6"
             >
-              <h3 className="text-xl font-bold text-carbon text-center">Elige tu mesa</h3>
+              <h3 className="font-display text-xl font-bold text-carbon text-center">Elige tu mesa</h3>
               <p className="text-sm text-carbon/60 text-center -mt-4">
                 Mesas disponibles para {personas} {personas === 1 ? 'persona' : 'personas'} a las {hora}.
               </p>
 
-              <div className="flex-1 flex justify-center py-4 relative">
-                <FloorPlanSVG 
+              {/* Selector de piso */}
+              <div className="flex gap-2 bg-carbon/[0.04] p-1.5 rounded-2xl border border-carbon/[0.08] max-w-sm mx-auto w-full">
+                {[{ n: 1, l: 'Planta baja' }, { n: 2, l: 'Rooftop' }].map((p) => (
+                  <button
+                    key={p.n}
+                    type="button"
+                    onClick={() => setPisoReserva(p.n)}
+                    className={`flex-1 h-11 rounded-xl text-sm font-bold transition-all ${
+                      pisoReserva === p.n
+                        ? 'bg-terracotta text-white shadow-md shadow-terracotta/25'
+                        : 'text-carbon/55 hover:text-carbon hover:bg-white/60'
+                    }`}
+                  >
+                    {p.l}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex-1 flex justify-center py-2 relative">
+                <FloorPlanSVG
                   disponibilidad={disponibilidad}
                   selectedMesaId={mesaId}
                   onMesaClick={setMesaId}
                   requiredCapacity={personas}
+                  piso={pisoReserva}
                 />
               </div>
 
@@ -216,7 +255,7 @@ export default function ReservationFlow() {
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
               className="flex flex-col gap-6"
             >
-              <h3 className="text-xl font-bold text-carbon mb-2">Tus datos</h3>
+              <h3 className="font-display text-xl font-bold text-carbon mb-2">Tus datos</h3>
               
               <div className="flex flex-col gap-2 relative">
                 <label className="text-xs font-bold text-carbon/60 uppercase tracking-wider pl-1">
@@ -271,7 +310,7 @@ export default function ReservationFlow() {
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
               className="flex flex-col gap-6 h-full"
             >
-              <h3 className="text-xl font-bold text-carbon mb-2">Resumen de reserva</h3>
+              <h3 className="font-display text-xl font-bold text-carbon mb-2">Resumen de reserva</h3>
               
               <Card>
                 <div className="flex flex-col gap-4 divide-y divide-border/40">
@@ -299,30 +338,13 @@ export default function ReservationFlow() {
                 </div>
               </Card>
 
-              <h3 className="text-xl font-bold text-carbon mb-2 mt-2 flex items-center gap-2">
-                <Wallet size={20} className="text-terracotta" /> Pago de Reserva
-              </h3>
-              <div className="grid grid-cols-2 gap-3 mb-2">
-                <button
-                  onClick={() => setMetodoPago('tarjeta')}
-                  className={`h-12 rounded-xl text-sm font-bold border transition-colors ${
-                    metodoPago === 'tarjeta' 
-                      ? 'border-terracotta bg-terracotta/10 text-terracotta' 
-                      : 'border-border/60 bg-white text-carbon/70'
-                  }`}
-                >
-                  Tarjeta
-                </button>
-                <button
-                  onClick={() => setMetodoPago('yape')}
-                  className={`h-12 rounded-xl text-sm font-bold border transition-colors ${
-                    metodoPago === 'yape' 
-                      ? 'border-terracotta bg-terracotta/10 text-terracotta' 
-                      : 'border-border/60 bg-white text-carbon/70'
-                  }`}
-                >
-                  Yape / Plin
-                </button>
+              <div className="flex items-start gap-3 rounded-xl border border-carbon/[0.08] bg-bone p-4 mt-1">
+                <Info size={18} className="text-terracotta shrink-0 mt-0.5" />
+                <p className="text-sm text-carbon/70 leading-relaxed m-0">
+                  La reserva <strong className="text-carbon">no tiene costo</strong>. Tu solicitud quedará{' '}
+                  <strong className="text-carbon">pendiente</strong> hasta que el restaurante la confirme.
+                  Pagarás tu consumo directamente en el local.
+                </p>
               </div>
 
               <div className="flex gap-3 mt-auto pt-8">

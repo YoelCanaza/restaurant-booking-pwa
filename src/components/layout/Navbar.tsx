@@ -8,17 +8,22 @@ const PAGE_TITLES: Record<string, string> = {
   '/cliente/reserva': 'Nueva Reserva',
   '/cliente/reservas': 'Mis Reservas',
   '/cliente/menu': 'Menú Delivery',
+  '/cliente/pedidos': 'Mis Pedidos',
   '/admin': 'Dashboard',
   '/admin/mesas': 'Plano de Mesas',
   '/admin/menu': 'Gestión de Menú',
   '/delivery': 'Mis Pedidos',
-  '/delivery/ruta': 'Ruta Actual',
+  '/mesero': 'Salón',
+  '/caja': 'Caja / POS',
 }
 
 const ROLE_COLOR: Record<UserRole, string> = {
   cliente: 'var(--color-terracotta)',
   admin: 'var(--color-carbon)',
   delivery: 'var(--color-amber)',
+  mesero: 'var(--color-terracotta)',
+  cocina: 'var(--color-carbon)',
+  caja: 'var(--color-amber)',
 }
 
 /**

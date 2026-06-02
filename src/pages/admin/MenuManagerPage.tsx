@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Search, X, Check } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
 import { useToastStore } from '../../store/useToastStore'
+import { useCurrentUser } from '../../hooks'
 import Switch from '../../components/ui/Switch'
 import Chip from '../../components/ui/Chip'
 import Button from '../../components/ui/Button'
@@ -11,6 +12,7 @@ import type { Plato } from '../../types'
 const CATEGORIAS = ['todos', 'entradas', 'sopas', 'segundos', 'bebidas']
 
 export default function MenuManagerPage() {
+  const user = useCurrentUser()
   const platos = useAppStore((s) => s.platos)
   const togglePlatoDisponible = useAppStore((s) => s.togglePlatoDisponible)
   const updatePlatoPrecio = useAppStore((s) => s.updatePlatoPrecio)
@@ -50,7 +52,7 @@ export default function MenuManagerPage() {
   }
 
   const handleToggle = (plato: Plato) => {
-    togglePlatoDisponible(plato.id)
+    togglePlatoDisponible(plato.id, user?.id ?? '', user?.role ?? 'admin')
     addToast(
       `${plato.nombre} ahora está ${!plato.disponible ? 'disponible' : 'agotado'}`,
       !plato.disponible ? 'success' : 'warning'
@@ -87,7 +89,7 @@ export default function MenuManagerPage() {
       {/* Header Fijo */}
       <div className="sticky top-0 z-30 bg-bone/95 backdrop-blur-md pt-6 pb-4 border-b border-border/40">
         <div className="px-6 mb-4">
-          <h1 className="text-2xl font-extrabold text-carbon tracking-tight">Gestor de Menú</h1>
+          <h1 className="font-display text-2xl font-black text-carbon tracking-tight">Gestor de Menú</h1>
         </div>
 
         {/* Búsqueda */}

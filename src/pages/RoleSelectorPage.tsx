@@ -1,5 +1,6 @@
 import { motion, type Variants } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { User, Mountain, Bike, ConciergeBell, ChefHat, CreditCard, ArrowRight, type LucideIcon } from 'lucide-react'
 import { useAuthStore } from '../store/useAuthStore'
 import type { UserRole } from '../types'
 
@@ -8,7 +9,7 @@ const ROLES: {
   role: UserRole
   label: string
   description: string
-  emoji: string
+  icon: LucideIcon
   path: string
   color: string
 }[] = [
@@ -16,7 +17,7 @@ const ROLES: {
     role: 'cliente',
     label: 'Cliente',
     description: 'Reserva una mesa o pide delivery',
-    emoji: '🍽️',
+    icon: User,
     path: '/cliente',
     color: 'var(--color-terracotta)',
   },
@@ -24,17 +25,41 @@ const ROLES: {
     role: 'admin',
     label: 'Administrador',
     description: 'Gestiona mesas, menú y pedidos',
-    emoji: '🏔️',
+    icon: Mountain,
     path: '/admin',
     color: 'var(--color-carbon)',
   },
   {
     role: 'delivery',
     label: 'Repartidor',
-    description: 'Ve tus pedidos asignados y tu ruta',
-    emoji: '🛵',
+    description: 'Ve tus pedidos asignados',
+    icon: Bike,
     path: '/delivery',
     color: 'var(--color-amber)',
+  },
+  {
+    role: 'mesero',
+    label: 'Mesero',
+    description: 'Toma pedidos y gestiona el salón',
+    icon: ConciergeBell,
+    path: '/mesero',
+    color: 'var(--color-terracotta)',
+  },
+  {
+    role: 'cocina',
+    label: 'Cocina (KDS)',
+    description: 'Gestiona la cola de preparación',
+    icon: ChefHat,
+    path: '/cocina',
+    color: 'var(--color-carbon)',
+  },
+  {
+    role: 'caja',
+    label: 'Caja (POS)',
+    description: 'Facturación y punto de venta',
+    icon: CreditCard,
+    path: '/caja',
+    color: 'var(--color-terracotta)',
   },
 ]
 
@@ -58,184 +83,87 @@ export default function RoleSelectorPage() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100dvh',
-        backgroundColor: 'var(--color-bone)',
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '2.5rem 1.25rem 2rem',
-      }}
-    >
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        style={{ textAlign: 'center', marginBottom: '2.5rem' }}
-      >
-        {/* Logo */}
-        <div
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: '50%',
-            backgroundColor: 'var(--color-terracotta)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 1.25rem',
-            boxShadow: 'var(--shadow-btn)',
-          }}
-        >
-          <span style={{ color: '#fff', fontSize: '1.4rem', fontWeight: 800 }}>RA</span>
-        </div>
+    <div className="min-h-[100dvh] flex flex-col bg-bone">
 
-        <h1
-          style={{
-            margin: '0 0 0.375rem',
-            fontSize: '1.6rem',
-            fontWeight: 800,
-            color: 'var(--color-carbon)',
-            letterSpacing: '-0.02em',
-          }}
+      {/* ─── Hero ───────────────────────────────────────────── */}
+      <header className="relative overflow-hidden bg-carbon text-white">
+        <img
+          src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1600&q=70&auto=format&fit=crop"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover opacity-30"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-carbon/80 via-carbon/85 to-carbon pointer-events-none" />
+        <div className="andean-motif absolute inset-0 opacity-[0.07] pointer-events-none" />
+        <div className="absolute -right-24 -top-28 w-80 h-80 rounded-full bg-terracotta/40 blur-[100px] pointer-events-none" />
+        <div className="absolute -left-24 -bottom-28 w-72 h-72 rounded-full bg-amber/20 blur-[100px] pointer-events-none" />
+
+        <motion.div
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="relative max-w-5xl mx-auto px-6 pt-16 pb-24 md:pt-20 md:pb-32 text-center"
         >
-          Rincón Andino
-        </h1>
-        <p
-          style={{
-            margin: '0 0 1.5rem',
-            color: 'var(--color-carbon)',
-            opacity: 0.55,
-            fontSize: '0.9rem',
-          }}
-        >
-          Gastronomía tradicional de Puno
+          {/* Monograma */}
+          <div className="w-16 h-16 mx-auto mb-7 rounded-2xl border border-white/25 flex items-center justify-center font-display text-2xl font-black tracking-tight bg-white/5 backdrop-blur-sm">
+            RA
+          </div>
+
+          <p className="text-[11px] md:text-xs font-semibold uppercase tracking-[0.28em] text-amber mb-4">
+            Gastronomía puneña · Puno, Perú
+          </p>
+          <h1 className="font-display m-0 text-4xl md:text-6xl font-black tracking-tight leading-none">
+            Rincón Andino
+          </h1>
+          <p className="m-0 mt-4 text-white/55 text-base md:text-lg font-medium max-w-[46ch] mx-auto leading-relaxed">
+            Del altiplano a tu mesa. Una experiencia gastronómica gestionada de punta a punta.
+          </p>
+        </motion.div>
+      </header>
+
+      {/* ─── Selección de rol ───────────────────────────────── */}
+      <main className="max-w-6xl mx-auto w-full px-6 -mt-14 md:-mt-20 pb-16 relative z-10 flex-1">
+        <p className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-carbon/45 mb-6">
+          Selecciona tu rol para ingresar
         </p>
 
-        {/* Badge de modo desarrollo */}
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.375rem',
-            backgroundColor: 'var(--color-amber)',
-            color: '#fff',
-            fontSize: '0.7rem',
-            fontWeight: 700,
-            padding: '0.3rem 0.75rem',
-            borderRadius: 999,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-          }}
+        <motion.div
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5"
         >
-          <span>⚙️</span>
-          Modo Desarrollo — Selecciona un rol
-        </div>
-      </motion.div>
-
-      {/* Cards de rol */}
-      <motion.div
-        variants={container}
-        initial="hidden"
-        animate="show"
-        style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', flex: 1 }}
-      >
-        {ROLES.map((r) => (
-          <motion.button
-            key={r.role}
-            variants={item}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => handleSelect(r.role, r.path)}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              padding: '1.125rem 1.25rem',
-              borderRadius: 16,
-              border: '1.5px solid var(--color-border)',
-              backgroundColor: 'var(--color-surface)',
-              cursor: 'pointer',
-              boxShadow: 'var(--shadow-card)',
-              textAlign: 'left',
-              transition: 'border-color 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              ;(e.currentTarget as HTMLButtonElement).style.borderColor = r.color
-            }}
-            onMouseLeave={(e) => {
-              ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)'
-            }}
-          >
-            {/* Emoji avatar */}
-            <div
-              style={{
-                width: 52,
-                height: 52,
-                borderRadius: 14,
-                backgroundColor: `${r.color}18`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.5rem',
-                flexShrink: 0,
-              }}
-            >
-              {r.emoji}
-            </div>
-
-            {/* Texto */}
-            <div style={{ flex: 1 }}>
-              <p
-                style={{
-                  margin: '0 0 0.2rem',
-                  fontSize: '1rem',
-                  fontWeight: 700,
-                  color: 'var(--color-carbon)',
-                }}
+          {ROLES.map((r) => {
+            const Icon = r.icon
+            return (
+              <motion.button
+                key={r.role}
+                variants={item}
+                whileHover={{ y: -4 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleSelect(r.role, r.path)}
+                className="group flex flex-col text-left p-6 rounded-2xl cursor-pointer bg-white border border-carbon/[0.08] shadow-sm hover:shadow-xl hover:border-terracotta/30 transition-all duration-300"
               >
-                {r.label}
-              </p>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.8rem',
-                  color: 'var(--color-carbon)',
-                  opacity: 0.55,
-                  lineHeight: 1.4,
-                }}
-              >
-                {r.description}
-              </p>
-            </div>
+                <div className="flex items-center justify-between mb-5">
+                  <span
+                    className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors"
+                    style={{ backgroundColor: `color-mix(in srgb, ${r.color} 12%, transparent)`, color: r.color }}
+                  >
+                    <Icon size={24} strokeWidth={2} />
+                  </span>
+                  <ArrowRight size={18} className="text-carbon/20 group-hover:text-terracotta group-hover:translate-x-1 transition-all" />
+                </div>
+                <h2 className="font-display m-0 mb-1 text-xl font-bold text-carbon">{r.label}</h2>
+                <p className="m-0 text-sm text-carbon/55 leading-relaxed font-medium">{r.description}</p>
+              </motion.button>
+            )
+          })}
+        </motion.div>
 
-            {/* Indicador de color */}
-            <div
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                backgroundColor: r.color,
-                flexShrink: 0,
-              }}
-            />
-          </motion.button>
-        ))}
-      </motion.div>
-
-      {/* Footer */}
-      <p
-        style={{
-          textAlign: 'center',
-          marginTop: '2rem',
-          fontSize: '0.72rem',
-          color: 'var(--color-carbon)',
-          opacity: 0.35,
-        }}
-      >
-        PWA · Proyecto HCI · UNAP Sistemas
-      </p>
+        <p className="text-center mt-12 text-xs text-carbon/40 font-medium">
+          PWA · Proyecto HCI · UNAP Sistemas · Acceso de demostración
+        </p>
+      </main>
     </div>
   )
 }

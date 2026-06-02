@@ -3,17 +3,21 @@ import { useNavigate } from 'react-router-dom'
 import { PackageOpen } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
 import { useCurrentUser } from '../../hooks'
+import { visualPedido } from '../../lib/estados'
 import Button from '../../components/ui/Button'
-import Chip from '../../components/ui/Chip'
+import PageHeader from '../../components/ui/PageHeader'
+import EmptyState from '../../components/ui/EmptyState'
+import StatusPill from '../../components/ui/StatusPill'
 import OrderTracker from '../../components/cliente/OrderTracker'
 
 export default function MyOrdersPage() {
   const user = useCurrentUser()
   const navigate = useNavigate()
   
-  // En una BD real filtraríamos por user.id. 
-  // En nuestro mock filtramos por nombre para que coincida con los de prueba.
-  const pedidos = useAppStore((s) => s.pedidos).filter((p) => p.clienteNombre === user?.name)
+  // Pedidos de delivery del cliente logueado (por clienteId).
+  const pedidos = useAppStore((s) => s.pedidos).filter(
+    (p) => p.tipo === 'delivery' && p.clienteId === user?.id
+  )
 
   // Ordenar los más recientes primero
   const pedidosOrdenados = [...pedidos].sort((a, b) => 
@@ -22,31 +26,19 @@ export default function MyOrdersPage() {
 
   return (
     <div className="flex flex-col min-h-full bg-bone px-6 pt-6 pb-24">
-      <motion.h2 
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-[1.75rem] font-extrabold text-carbon tracking-tight mb-6"
-      >
-        Mis Pedidos 🛵
-      </motion.h2>
+      <PageHeader title="Mis Pedidos" subtitle="Sigue tus delivery en tiempo real" eyebrow="Cliente" className="mb-6" />
 
       {pedidosOrdenados.length === 0 ? (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex flex-col items-center justify-center flex-1 py-12 text-center"
-        >
-          <div className="w-24 h-24 bg-carbon/5 rounded-full flex items-center justify-center mb-6 shadow-inner">
-            <PackageOpen size={48} className="text-carbon/30" />
-          </div>
-          <h3 className="text-xl font-bold text-carbon mb-2">Aún no tienes pedidos</h3>
-          <p className="text-carbon/60 mb-8 max-w-[260px] leading-relaxed">
-            ¿Se te antoja un Chupe de Camarones o una Trucha a la plancha?
-          </p>
-          <Button size="lg" onClick={() => navigate('/cliente/menu')}>
-            Pedir Delivery Ahora
-          </Button>
-        </motion.div>
+        <EmptyState
+          icon={PackageOpen}
+          title="Aún no tienes pedidos"
+          description="¿Se te antoja un Chupe de Camarones o una Trucha a la plancha?"
+          action={
+            <Button size="lg" onClick={() => navigate('/cliente/menu')}>
+              Pedir Delivery Ahora
+            </Button>
+          }
+        />
       ) : (
         <div className="flex flex-col gap-5">
           {pedidosOrdenados.map((pedido, i) => (
@@ -55,19 +47,16 @@ export default function MyOrdersPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
-              className="bg-white rounded-2xl p-5 shadow-sm border border-border/40"
+              className="bg-white rounded-2xl p-5 shadow-sm border border-carbon/[0.08]"
             >
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <p className="text-xs font-bold text-carbon/50 uppercase tracking-wider mb-1">
                     {new Date(pedido.createdAt).toLocaleDateString()}
                   </p>
-                  <p className="font-extrabold text-carbon text-lg">Pedido {pedido.id.replace('ped_', '#')}</p>
+                  <p className="font-display font-bold text-carbon text-lg">Pedido {pedido.id.replace('ped_', '#')}</p>
                 </div>
-                <Chip 
-                  label={pedido.estado.replace('_', ' ')} 
-                  selected={pedido.estado !== 'entregado'}
-                />
+                <StatusPill visual={visualPedido(pedido.estado)} />
               </div>
 
               {/* Order Tracker for active orders */}

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import {
   Home, Calendar, ShoppingBag, LogOut,
   LayoutDashboard, Grid3X3, UtensilsCrossed,
-  Package, MapPin,
+  Package,
 } from 'lucide-react'
 import { useCurrentUser } from '../../hooks'
 import { useAuthStore } from '../../store/useAuthStore'
@@ -32,16 +32,24 @@ const TABS: Record<UserRole, TabItem[]> = {
     { label: 'Salir',     path: '/__logout__',    icon: LogOut, isLogout: true },
   ],
   delivery: [
-    { label: 'Pedidos', path: '/delivery',      icon: Package },
-    { label: 'Ruta',    path: '/delivery/ruta', icon: MapPin },
-    { label: 'Salir',   path: '/__logout__',     icon: LogOut, isLogout: true },
+    { label: 'Pedidos', path: '/delivery',  icon: Package },
+    { label: 'Salir',   path: '/__logout__', icon: LogOut, isLogout: true },
   ],
+  mesero: [
+    { label: 'Mesas', path: '/mesero',     icon: Grid3X3 },
+    { label: 'Salir', path: '/__logout__', icon: LogOut, isLogout: true },
+  ],
+  cocina: [], // No usa BottomNav
+  caja: [],   // No usa BottomNav
 }
 
 const ROLE_COLOR: Record<UserRole, string> = {
   cliente:  'var(--color-terracotta)',
   admin:    'var(--color-carbon)',
   delivery: 'var(--color-amber)',
+  mesero:   'var(--color-terracotta)',
+  cocina:   'var(--color-carbon)',
+  caja:     'var(--color-terracotta)',
 }
 
 // ─── COMPONENTE ──────────────────────────────────────────────
@@ -56,6 +64,8 @@ export default function BottomNav() {
 
   const tabs        = TABS[user.role]
   const accentColor = ROLE_COLOR[user.role]
+
+  if (tabs.length === 0) return null
 
   const handleTab = (tab: TabItem) => {
     if (tab.isLogout) {
@@ -100,6 +110,7 @@ export default function BottomNav() {
 
   return (
     <nav
+      className="flex md:hidden"
       style={{
         position: 'sticky',
         bottom: 0,
@@ -108,7 +119,6 @@ export default function BottomNav() {
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         borderTop: '1px solid var(--color-border)',
-        display: 'flex',
         alignItems: 'stretch',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         zIndex: 40,

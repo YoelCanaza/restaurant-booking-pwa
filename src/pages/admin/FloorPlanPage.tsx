@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Users, Map, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, Users, Map, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Building2 } from 'lucide-react'
 import { useAppStore, getDisponibilidadMesas } from '../../store/useAppStore'
 import { useToastStore } from '../../store/useToastStore'
 import Button from '../../components/ui/Button'
@@ -14,7 +14,8 @@ export default function FloorPlanPage() {
   const addToast = useToastStore((s) => s.addToast)
 
   const [selectedMesa, setSelectedMesa] = useState<Mesa | null>(null)
-  
+  const [piso, setPiso] = useState(1)
+
   // Gestión de Fecha
   const [dateOffset, setDateOffset] = useState(0) // 0 = hoy, 1 = mañana, etc.
   
@@ -59,7 +60,7 @@ export default function FloorPlanPage() {
     <div className="flex flex-col min-h-full bg-bone pb-24">
       {/* Header */}
       <div className="px-6 py-6 bg-white border-b border-border/40 shadow-sm relative z-10">
-        <h1 className="text-2xl font-extrabold text-carbon tracking-tight flex items-center gap-2">
+        <h1 className="font-display text-2xl font-black text-carbon tracking-tight flex items-center gap-2">
           <Map className="text-terracotta" /> Plano de Mesas
         </h1>
         
@@ -84,6 +85,23 @@ export default function FloorPlanPage() {
           </button>
         </div>
 
+        {/* Selector de piso */}
+        <div className="flex gap-2 mt-4 bg-carbon/[0.04] p-1.5 rounded-2xl border border-carbon/[0.08]">
+          {[{ n: 1, l: 'Planta baja' }, { n: 2, l: 'Rooftop' }].map((p) => (
+            <button
+              key={p.n}
+              onClick={() => { setPiso(p.n); setSelectedMesa(null) }}
+              className={`flex-1 h-11 rounded-xl text-sm font-bold inline-flex items-center justify-center gap-2 transition-all ${
+                piso === p.n
+                  ? 'bg-terracotta text-white shadow-md shadow-terracotta/25'
+                  : 'text-carbon/55 hover:text-carbon hover:bg-white/60'
+              }`}
+            >
+              <Building2 size={16} /> {p.l}
+            </button>
+          ))}
+        </div>
+
         {/* Leyenda */}
         <div className="flex gap-4 mt-4 justify-center">
           <div className="flex items-center gap-1.5">
@@ -106,10 +124,11 @@ export default function FloorPlanPage() {
         {/* Decorative Floor Lines */}
         <div className="absolute inset-4 border-2 border-dashed border-border/60 rounded-3xl pointer-events-none" />
         
-        <FloorPlanSVG 
-          disponibilidad={disponibilidad} 
-          selectedMesaId={selectedMesa?.id} 
-          onMesaClick={handleMesaClick} 
+        <FloorPlanSVG
+          disponibilidad={disponibilidad}
+          selectedMesaId={selectedMesa?.id}
+          onMesaClick={handleMesaClick}
+          piso={piso}
         />
       </div>
 
@@ -133,7 +152,7 @@ export default function FloorPlanPage() {
             >
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h3 className="text-2xl font-extrabold text-carbon flex items-center gap-2">
+                  <h3 className="font-display text-2xl font-black text-carbon flex items-center gap-2">
                     Mesa {selectedMesa.numero}
                   </h3>
                   <p className="text-carbon/60 font-medium flex items-center gap-1 mt-1">

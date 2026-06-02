@@ -6,6 +6,7 @@ import MenuGrid, { CATEGORIAS } from '../../components/delivery/MenuGrid'
 import CartDrawer from '../../components/delivery/CartDrawer'
 import Button from '../../components/ui/Button'
 import Chip from '../../components/ui/Chip'
+import { useToastStore } from '../../store/useToastStore'
 import type { CategoriaPlato } from '../../types'
 
 /**
@@ -17,6 +18,7 @@ export default function DeliveryMenu() {
   const [isSuccess, setIsSuccess] = useState(false)
   const [categoriaActiva, setCategoriaActiva] = useState<CategoriaPlato | 'todos'>('todos')
   const navigate = useNavigate()
+  const addToast = useToastStore((s) => s.addToast)
 
   if (isSuccess) {
     return (
@@ -34,9 +36,9 @@ export default function DeliveryMenu() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="text-2xl font-extrabold text-carbon text-center mb-2"
+          className="font-display text-2xl font-black text-carbon text-center mb-2"
         >
-          ¡Pedido en camino! 🛵
+          ¡Pedido en camino!
         </motion.h2>
         
         <motion.p 
@@ -64,10 +66,10 @@ export default function DeliveryMenu() {
             </div>
           </div>
           
-          <Button 
-            variant="secondary" 
-            fullWidth 
-            onClick={() => alert('Llamando al repartidor asignado...')}
+          <Button
+            variant="secondary"
+            fullWidth
+            onClick={() => addToast('Función de contacto disponible próximamente (demo)', 'warning')}
             className="h-12"
           >
             <PhoneCall size={18} />
@@ -102,9 +104,9 @@ export default function DeliveryMenu() {
         <motion.h2 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-[1.75rem] font-extrabold text-carbon tracking-tight mb-3"
+          className="font-display text-[1.85rem] font-black text-carbon tracking-tight mb-3"
         >
-          Menú Delivery 🛵
+          Menú Delivery
         </motion.h2>
 
         {/* ── Chips de Categorías ────────────────────────── */}

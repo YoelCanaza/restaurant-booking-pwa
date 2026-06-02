@@ -1,0 +1,32 @@
+{
+  "inventory": [
+    { "id": "1", "name": "Pan artesanal", "stock": 100, "unit": "unidades" },
+    { "id": "2", "name": "Carne de res", "stock": 50, "unit": "kg" },
+    { "id": "3", "name": "Queso Edam", "stock": 20, "unit": "kg" }
+  ],
+  "kitchenQueue": [
+    { 
+      "id": "1", 
+      "orderId": "1001",
+      "status": "new",
+      "items": [
+        { "name": "Hamburguesa Clásica", "qty": 2, "station": "grill", "modifiers": ["Sin cebolla"] }
+      ],
+      "createdAt": "2026-05-20T12:00:00Z"
+    }
+  ],
+  "orders": [
+    {
+      "id": "1001",
+      "type": "salon",
+      "table": "A1",
+      "status": "preparing",
+      "total": 35.00
+    }
+  ],
+  "tables": [
+    { "id": "A1", "status": "occupied", "capacity": 4 },
+    { "id": "A2", "status": "free", "capacity": 2 },
+    { "id": "A3", "status": "waiting", "capacity": 6 }
+  ]
+}

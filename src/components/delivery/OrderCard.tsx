@@ -1,5 +1,6 @@
 import { useAppStore } from '../../store/useAppStore'
 import { useToastStore } from '../../store/useToastStore'
+import { useCurrentUser } from '../../hooks'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronUp, MapPin } from 'lucide-react'
 import Chip from '../ui/Chip'
@@ -17,11 +18,12 @@ const nextEstado = (estado: string) => {
 export default function OrderCard({ pedido }: { pedido: any }) {
   const updateEstado = useAppStore((s) => s.updatePedidoEstado)
   const addToast = useToastStore((s) => s.addToast)
+  const user = useCurrentUser()
   const [expanded, setExpanded] = useState(false)
 
   const handleConfirm = () => {
     const newEstado = nextEstado(pedido.estado)
-    updateEstado(pedido.id, newEstado as any)
+    updateEstado(pedido.id, newEstado as any, user?.id ?? '', user?.role ?? 'delivery')
   }
 
   // Badge color & animation

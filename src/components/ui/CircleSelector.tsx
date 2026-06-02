@@ -7,6 +7,8 @@ interface CircleSelectorProps {
   min?: number
   max?: number
   label?: string
+  /** Unidad en singular (ej. "persona") — se muestra bajo el número y se pluraliza. */
+  unit?: string
 }
 
 /**
@@ -16,9 +18,10 @@ interface CircleSelectorProps {
 export default function CircleSelector({ 
   value, 
   onChange, 
-  min = 1, 
-  max = 10, 
-  label 
+  min = 1,
+  max = 10,
+  label,
+  unit,
 }: CircleSelectorProps) {
   const handleDec = () => { if (value > min) onChange(value - 1) }
   const handleInc = () => { if (value < max) onChange(value + 1) }
@@ -38,15 +41,20 @@ export default function CircleSelector({
           <Minus size={22} strokeWidth={2.5} />
         </motion.button>
         
-        <div className="w-12 text-center">
-          <motion.span 
+        <div className="min-w-20 text-center">
+          <motion.span
             key={value}
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-4xl font-bold text-carbon block"
+            className="font-display text-5xl font-black text-carbon block leading-none"
           >
             {value}
           </motion.span>
+          {unit && (
+            <span className="block text-xs font-semibold uppercase tracking-wider text-carbon/45 mt-1.5">
+              {value === 1 ? unit : `${unit}s`}
+            </span>
+          )}
         </div>
         
         <motion.button

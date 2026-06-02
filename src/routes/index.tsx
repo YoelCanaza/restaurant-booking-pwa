@@ -1,12 +1,17 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { useCurrentUser } from '../hooks'
 
-// Layout
-import MainLayout from '../components/layout/MainLayout'
+// Layouts
+import MobileLayout from '../components/layout/MobileLayout'
+import KdsLayout from '../components/layout/KdsLayout'
+import DesktopLayout from '../components/layout/DesktopLayout'
 import ProtectedRoute from '../components/layout/ProtectedRoute'
 
 // Páginas públicas
 import RoleSelectorPage from '../pages/RoleSelectorPage'
+import LandingPage from '../pages/LandingPage'
+import LoginPage from '../pages/LoginPage'
+import RegisterPage from '../pages/RegisterPage'
 
 // Páginas cliente
 import ClientHome from '../pages/cliente/ClientHome'
@@ -19,119 +24,91 @@ import MyOrdersPage from '../pages/cliente/MyOrdersPage'
 import AdminDashboard from '../pages/admin/AdminDashboard'
 import FloorPlanPage from '../pages/admin/FloorPlanPage'
 import MenuManagerPage from '../pages/admin/MenuManagerPage'
+import ReservationsAdminPage from '../pages/admin/ReservationsAdminPage'
+import OrdersAdminPage from '../pages/admin/OrdersAdminPage'
+import StaffAdminPage from '../pages/admin/StaffAdminPage'
+import ClientsAdminPage from '../pages/admin/ClientsAdminPage'
+import ReportsAdminPage from '../pages/admin/ReportsAdminPage'
 
 // Páginas delivery
 import DeliveryView from '../pages/delivery/DeliveryView'
+
+// Nuevas páginas
+import WaiterDashboard from '../pages/mesero/WaiterDashboard'
+import KitchenKDS from '../pages/cocina/KitchenKDS'
+import POSView from '../pages/cajero/POSView'
 
 /**
  * AppRoutes — Rincón Andino
  * ─────────────────────────────────────────────────────────────
  * Sistema de rutas con redirección automática según el rol activo.
- *
- * "/" →  Sin user → RoleSelectorPage (modo dev)
- *        Con user → Redirige a la home de su rol
- *
- * Rutas protegidas: ProtectedRoute verifica que el rol coincida.
- * ─────────────────────────────────────────────────────────────
  */
 function RootRedirect() {
   const user = useCurrentUser()
 
-  if (!user) return <RoleSelectorPage />
+  if (!user) return <LandingPage />
 
   // Redirección automática según rol
-  const paths = { cliente: '/cliente', admin: '/admin', delivery: '/delivery' }
-  return <Navigate to={paths[user.role]} replace />
+  const paths: Record<string, string> = {
+    cliente: '/cliente',
+    admin: '/admin',
+    delivery: '/delivery',
+    mesero: '/mesero',
+    cocina: '/cocina',
+    caja: '/caja',
+  }
+  return <Navigate to={paths[user.role] || '/'} replace />
 }
 
 export default function AppRoutes() {
   return (
-    <MainLayout>
-      <Routes>
-        {/* ── Raíz ────────────────────────────────────────── */}
-        <Route path="/" element={<RootRedirect />} />
+    <Routes>
+      {/* ── Raíz y públicas ─────────────────────────────── */}
+      <Route path="/" element={<RootRedirect />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/registro" element={<RegisterPage />} />
+      <Route path="/demo" element={<RoleSelectorPage />} />
 
-        {/* ── Rutas de Cliente ────────────────────────────── */}
-        <Route
-          path="/cliente"
-          element={
-            <ProtectedRoute requiredRole="cliente">
-              <ClientHome />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/cliente/reserva"
-          element={
-            <ProtectedRoute requiredRole="cliente">
-              <ReservationFlow />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/cliente/reservas"
-          element={
-            <ProtectedRoute requiredRole="cliente">
-              <MyReservationsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/cliente/menu"
-          element={
-            <ProtectedRoute requiredRole="cliente">
-              <DeliveryMenu />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/cliente/pedidos"
-          element={
-            <ProtectedRoute requiredRole="cliente">
-              <MyOrdersPage />
-            </ProtectedRoute>
-          }
-        />
+      {/* ── Mobile Layout (Cliente, Delivery, Mesero) ───── */}
+      <Route element={<MobileLayout><Outlet /></MobileLayout>}>
+        {/* Rutas de Cliente */}
+        <Route path="/cliente" element={<ProtectedRoute requiredRole="cliente"><ClientHome /></ProtectedRoute>} />
+        {/* Reserva: accesible a invitados (la cuenta se crea al confirmar) */}
+        <Route path="/cliente/reserva" element={<ReservationFlow />} />
+        <Route path="/cliente/reservas" element={<ProtectedRoute requiredRole="cliente"><MyReservationsPage /></ProtectedRoute>} />
+        <Route path="/cliente/menu" element={<ProtectedRoute requiredRole="cliente"><DeliveryMenu /></ProtectedRoute>} />
+        <Route path="/cliente/pedidos" element={<ProtectedRoute requiredRole="cliente"><MyOrdersPage /></ProtectedRoute>} />
+        
+        {/* Rutas de Delivery */}
+        <Route path="/delivery" element={<ProtectedRoute requiredRole="delivery"><DeliveryView /></ProtectedRoute>} />
 
-        {/* ── Rutas de Admin ──────────────────────────────── */}
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <AdminDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/mesas"
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <FloorPlanPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/menu"
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <MenuManagerPage />
-            </ProtectedRoute>
-          }
-        />
+        {/* Rutas de Mesero */}
+        <Route path="/mesero" element={<ProtectedRoute requiredRole="mesero"><WaiterDashboard /></ProtectedRoute>} />
+      </Route>
 
-        {/* ── Rutas de Delivery ───────────────────────────── */}
-        <Route
-          path="/delivery"
-          element={
-            <ProtectedRoute requiredRole="delivery">
-              <DeliveryView />
-            </ProtectedRoute>
-          }
-        />
+      {/* ── Desktop Layout (Admin, Caja) ────────────────── */}
+      <Route element={<DesktopLayout><Outlet /></DesktopLayout>}>
+        {/* Rutas de Admin */}
+        <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/reservas" element={<ProtectedRoute requiredRole="admin"><ReservationsAdminPage /></ProtectedRoute>} />
+        <Route path="/admin/pedidos" element={<ProtectedRoute requiredRole="admin"><OrdersAdminPage /></ProtectedRoute>} />
+        <Route path="/admin/mesas" element={<ProtectedRoute requiredRole="admin"><FloorPlanPage /></ProtectedRoute>} />
+        <Route path="/admin/menu" element={<ProtectedRoute requiredRole="admin"><MenuManagerPage /></ProtectedRoute>} />
+        <Route path="/admin/personal" element={<ProtectedRoute requiredRole="admin"><StaffAdminPage /></ProtectedRoute>} />
+        <Route path="/admin/clientes" element={<ProtectedRoute requiredRole="admin"><ClientsAdminPage /></ProtectedRoute>} />
+        <Route path="/admin/reportes" element={<ProtectedRoute requiredRole="admin"><ReportsAdminPage /></ProtectedRoute>} />
 
-        {/* ── 404 ─────────────────────────────────────────── */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </MainLayout>
+        {/* Rutas de Caja (POS) */}
+        <Route path="/caja" element={<ProtectedRoute requiredRole="caja"><POSView /></ProtectedRoute>} />
+      </Route>
+
+      {/* ── KDS Layout (Cocina) ─────────────────────────── */}
+      <Route element={<KdsLayout><Outlet /></KdsLayout>}>
+        <Route path="/cocina" element={<ProtectedRoute requiredRole="cocina"><KitchenKDS /></ProtectedRoute>} />
+      </Route>
+
+      {/* ── 404 ─────────────────────────────────────────── */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }
