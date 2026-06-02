@@ -14,21 +14,17 @@ export default defineConfig({
         enabled: true
       },
       manifest: {
-        name: 'Rincón Andino RMS',
+        name: 'Rincón Andino · Gastronomía Puneña',
         short_name: 'Rincón Andino',
-        description: 'Restaurant Management System para Rincón Andino',
+        description: 'Reserva mesa, pide delivery y gestiona el restaurante de gastronomía puneña.',
         theme_color: '#E05936',
+        background_color: '#F9F6F0',
+        display: 'standalone',
+        lang: 'es',
         icons: [
-          {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
       }
     })
