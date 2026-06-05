@@ -18,6 +18,8 @@ export interface User {
   activo: boolean           // El admin puede desactivar cuentas de empleados
   createdAt: string         // ISO datetime string
   creadoPorAdminId?: string // null/undefined = cliente auto-registrado; string = empleado creado por admin
+  password?: string         // Solo personal: contraseña temporal asignada por el admin (mock; en backend se hashea)
+  debeCambiarPassword?: boolean // true tras el alta hasta que el empleado la cambie en su primer ingreso
 }
 
 // ─── MÉTODO DE PAGO ──────────────────────────────────────────

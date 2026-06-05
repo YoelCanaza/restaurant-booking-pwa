@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Store, Receipt, Banknote, CreditCard, CheckCircle, QrCode, X, Clock } from 'lucide-react'
+import { Store, Receipt, Banknote, CreditCard, CheckCircle, QrCode, X, Clock, Plus } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import Modal from '../../components/ui/Modal'
@@ -24,7 +24,13 @@ export default function POSView() {
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo')
   const [montoRecibido, setMontoRecibido] = useState('')
   const [showSuccess, setShowSuccess] = useState(false)
+  const [successMsg, setSuccessMsg] = useState('La mesa ha sido liberada y el comprobante está listo.')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [incluirServicio, setIncluirServicio] = useState(true)
+  // Último cobro confirmado, para imprimir el comprobante
+  const [comprobante, setComprobante] = useState<
+    null | { titulo: string; id: string; items: Pedido['items']; subtotal: number; servicio: number; total: number; metodo: MetodoPago; recibido: number | null; vuelto: number | null; fecha: Date }
+  >(null)
 
   const cajeroId = user?.id ?? 'usr_caja_01'
 
@@ -34,24 +40,54 @@ export default function POSView() {
 
   const pedidoActivo = cola.find((p) => p.id === selectedPedidoId)
 
+  // Totales con servicio opcional
+  const subtotalActivo = pedidoActivo?.total ?? 0
+  const servicioActivo = incluirServicio ? subtotalActivo * 0.1 : 0
+  const totalConServicio = subtotalActivo + servicioActivo
+  const igvIncluido = totalConServicio * (18 / 118)
+
   const vuelto =
     metodoPago === 'efectivo' && montoRecibido && pedidoActivo
-      ? parseFloat(montoRecibido) - pedidoActivo.total
+      ? parseFloat(montoRecibido) - totalConServicio
       : null
 
   const handlePagar = () => {
     if (!pedidoActivo) return
 
+    let recibido: number | null = null
     if (metodoPago === 'efectivo' && montoRecibido) {
-      const recibido = parseFloat(montoRecibido)
-      if (isNaN(recibido) || recibido < pedidoActivo.total) {
+      recibido = parseFloat(montoRecibido)
+      if (isNaN(recibido) || recibido < totalConServicio) {
         setErrorMsg('El monto recibido es insuficiente para cubrir el total.')
         return
       }
     }
 
+    // Capturar datos del comprobante ANTES de cobrar (el pedido sale de la cola)
+    const comp = {
+      titulo: getMesaLabel(pedidoActivo),
+      id: pedidoActivo.id,
+      items: pedidoActivo.items,
+      subtotal: subtotalActivo,
+      servicio: servicioActivo,
+      total: totalConServicio,
+      metodo: metodoPago,
+      recibido,
+      vuelto: recibido != null ? recibido - totalConServicio : null,
+      fecha: new Date(),
+    }
+
+    const mesaId = pedidoActivo.mesaId
     const result = procesarPago(pedidoActivo.id, metodoPago, cajeroId)
     if (result.ok) {
+      const colaActualizada = getPedidosPendientesCobro()
+      const quedan = mesaId ? colaActualizada.filter((p) => p.mesaId === mesaId).length : 0
+      setSuccessMsg(
+        quedan > 0
+          ? `Cobro registrado. Quedan ${quedan} comanda${quedan > 1 ? 's' : ''} por cobrar de esa mesa.`
+          : 'La mesa ha sido liberada y el comprobante está listo.'
+      )
+      setComprobante(comp)
       setShowSuccess(true)
       setSelectedPedidoId(null)
       setMontoRecibido('')
@@ -61,13 +97,85 @@ export default function POSView() {
     }
   }
 
-  const getMesaLabel = (pedido: Pedido) => {
+  const imprimirComprobante = () => {
+    if (!comprobante) return
+    const c = comprobante
+    const igv = c.total * (18 / 118)
+    const win = window.open('', '_blank', 'width=380,height=700')
+    if (!win) return
+    const filas = c.items
+      .map((it) => `<tr><td>${it.cantidad}× ${it.nombre}${it.notas ? `<br/><span class="nota">${it.notas}</span>` : ''}</td><td class="r">S/ ${(it.precio * it.cantidad).toFixed(2)}</td></tr>`)
+      .join('')
+    const servicioFila = c.servicio > 0
+      ? `<tr><td>Servicio (10%)</td><td class="r">S/ ${c.servicio.toFixed(2)}</td></tr>`
+      : ''
+    const efectivo =
+      c.recibido != null
+        ? `<tr><td>Recibido</td><td class="r">S/ ${c.recibido.toFixed(2)}</td></tr><tr><td>Vuelto</td><td class="r">S/ ${(c.vuelto ?? 0).toFixed(2)}</td></tr>`
+        : ''
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Comprobante ${c.id.slice(-6).toUpperCase()}</title>
+      <style>
+        *{font-family:'Courier New',monospace;color:#2D2A26}
+        body{width:300px;margin:0 auto;padding:18px}
+        h1{font-size:18px;text-align:center;margin:0}
+        .sub{text-align:center;font-size:11px;color:#777;margin:2px 0 12px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        td{padding:3px 0}.r{text-align:right}
+        .nota{font-size:10px;color:#999;font-style:italic}
+        .sep{border-top:1px dashed #999;margin:10px 0}
+        .tot{font-weight:bold;font-size:14px}
+        .igv{font-size:11px;color:#777;text-align:center;margin-top:8px}
+        .ft{text-align:center;font-size:11px;color:#777;margin-top:14px}
+      </style></head><body>
+      <h1>RINCÓN ANDINO</h1>
+      <div class="sub">Gastronomía puneña · Puno, Perú<br/>RUC: 20600000001</div>
+      <table><tr><td>${c.titulo}</td><td class="r">#${c.id.slice(-6).toUpperCase()}</td></tr>
+      <tr><td>${c.fecha.toLocaleString('es-PE')}</td><td></td></tr></table>
+      <div class="sep"></div>
+      <table>${filas}</table>
+      <div class="sep"></div>
+      <table>
+        <tr><td>Subtotal</td><td class="r">S/ ${c.subtotal.toFixed(2)}</td></tr>
+        ${servicioFila}
+        <tr class="tot"><td>TOTAL</td><td class="r">S/ ${c.total.toFixed(2)}</td></tr>
+        <tr><td>Método</td><td class="r">${METODO_CONFIG[c.metodo].label}</td></tr>
+        ${efectivo}
+      </table>
+      <div class="igv">IGV 18% incluido: S/ ${igv.toFixed(2)}</div>
+      <div class="ft">¡Gracias por tu visita!<br/>Emitido como: BOLETA DE VENTA (demo)</div>
+      </body></html>`)
+    win.document.close()
+    win.focus()
+    win.print()
+  }
+
+  // Si hay más de un pedido activo para la misma mesa, los adicionales llevan "(+)"
+  const comandasPorMesa = cola.reduce<Record<string, number>>((acc, p) => {
+    if (p.tipo === 'salon' && p.mesaId) {
+      acc[p.mesaId] = (acc[p.mesaId] ?? 0) + 1
+    }
+    return acc
+  }, {})
+
+  const getMesaLabel = (pedido: Pedido, short = false) => {
     if (pedido.tipo === 'salon' && pedido.mesaId) {
       const mesa = mesas.find((m) => m.id === pedido.mesaId)
-      return mesa ? `Mesa ${mesa.numero}` : 'Salón'
+      const base = mesa ? `Mesa ${mesa.numero}` : 'Salón'
+      // Si hay múltiples comandas, las no-primarias (distinto de mesa.pedidoId) son adicionales
+      const esAdicional = mesa && mesa.pedidoId && pedido.id !== mesa.pedidoId && (comandasPorMesa[pedido.mesaId] ?? 0) > 1
+      return esAdicional ? `${base}${short ? '' : ' — adicional'}` : base
     }
     return `Delivery — ${pedido.clienteNombre}`
   }
+
+  const esAdicional = (pedido: Pedido) =>
+    pedido.tipo === 'salon' &&
+    pedido.mesaId != null &&
+    (comandasPorMesa[pedido.mesaId] ?? 0) > 1 &&
+    (() => {
+      const mesa = mesas.find((m) => m.id === pedido.mesaId)
+      return mesa?.pedidoId != null && pedido.id !== mesa.pedidoId
+    })()
 
   const getMinutosEspera = (pedido: Pedido) =>
     Math.floor((Date.now() - new Date(pedido.createdAt).getTime()) / 60000)
@@ -105,6 +213,7 @@ export default function POSView() {
           {cola.map((pedido) => {
             const minutos = getMinutosEspera(pedido)
             const isSelected = selectedPedidoId === pedido.id
+            const adicional = esAdicional(pedido)
             return (
               <button
                 key={pedido.id}
@@ -115,8 +224,8 @@ export default function POSView() {
                   gap: '1rem',
                   padding: '1rem',
                   borderRadius: 12,
-                  border: `2px solid ${isSelected ? 'var(--color-terracotta)' : 'var(--color-border)'}`,
-                  backgroundColor: isSelected ? 'rgba(224,89,54,0.05)' : '#fff',
+                  border: `2px solid ${isSelected ? 'var(--color-terracotta)' : adicional ? 'rgba(224,89,54,0.3)' : 'var(--color-border)'}`,
+                  backgroundColor: isSelected ? 'rgba(224,89,54,0.05)' : adicional ? 'rgba(224,89,54,0.02)' : '#fff',
                   cursor: 'pointer',
                   textAlign: 'left',
                   transition: 'all 0.2s',
@@ -125,16 +234,21 @@ export default function POSView() {
                 <div
                   style={{
                     width: 42, height: 42, borderRadius: 10,
-                    backgroundColor: isSelected ? 'rgba(224,89,54,0.1)' : 'rgba(45,42,38,0.05)',
+                    backgroundColor: isSelected ? 'rgba(224,89,54,0.1)' : adicional ? 'rgba(224,89,54,0.07)' : 'rgba(45,42,38,0.05)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: isSelected ? 'var(--color-terracotta)' : 'var(--color-carbon)',
+                    color: isSelected || adicional ? 'var(--color-terracotta)' : 'var(--color-carbon)',
                   }}
                 >
-                  <Store size={20} />
+                  {adicional ? <Plus size={20} /> : <Store size={20} />}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--color-carbon)' }}>
+                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--color-carbon)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     {getMesaLabel(pedido)}
+                    {adicional && (
+                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-terracotta)', backgroundColor: 'rgba(224,89,54,0.1)', padding: '1px 6px', borderRadius: 99 }}>
+                        adicional
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: '0.78rem', color: 'rgba(45,42,38,0.5)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: 2 }}>
                     <Clock size={11} /> {minutos}min · {pedido.items.length} platos
@@ -208,9 +322,40 @@ export default function POSView() {
                   <span style={{ fontWeight: 700 }}>S/ {(item.precio * item.cantidad).toFixed(2)}</span>
                 </div>
               ))}
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.5rem', fontSize: '1.3rem', fontWeight: 800, color: 'var(--color-carbon)' }}>
-                <span>TOTAL</span>
-                <span>S/ {pedidoActivo.total.toFixed(2)}</span>
+              {/* Subtotal + servicio toggle + total */}
+              <div style={{ borderTop: '1px dashed var(--color-border)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'rgba(45,42,38,0.6)' }}>
+                  <span>Subtotal</span>
+                  <span>S/ {subtotalActivo.toFixed(2)}</span>
+                </div>
+                {/* Toggle servicio 10% */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.9rem', color: 'rgba(45,42,38,0.6)' }}>
+                  <button
+                    onClick={() => setIncluirServicio((v) => !v)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.9rem', color: 'rgba(45,42,38,0.6)' }}
+                  >
+                    <span style={{
+                      width: 32, height: 17, borderRadius: 99, display: 'flex', alignItems: 'center', padding: '0 2px',
+                      backgroundColor: incluirServicio ? 'var(--color-terracotta)' : 'var(--color-border)',
+                      transition: 'background 0.2s',
+                    }}>
+                      <span style={{
+                        width: 13, height: 13, borderRadius: '50%', backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                        transform: incluirServicio ? 'translateX(15px)' : 'translateX(0)',
+                        transition: 'transform 0.2s',
+                      }} />
+                    </span>
+                    Servicio (10%)
+                  </button>
+                  <span>{incluirServicio ? `S/ ${servicioActivo.toFixed(2)}` : '—'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.3rem', fontWeight: 800, color: 'var(--color-carbon)', borderTop: '1px solid var(--color-border)', paddingTop: '0.5rem', marginTop: '0.2rem' }}>
+                  <span>TOTAL</span>
+                  <span>S/ {totalConServicio.toFixed(2)}</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'rgba(45,42,38,0.4)', textAlign: 'right' }}>
+                  IGV 18% incluido: S/ {igvIncluido.toFixed(2)}
+                </div>
               </div>
             </div>
 
@@ -257,9 +402,9 @@ export default function POSView() {
                   <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                     <input
                       type="number"
-                      min={pedidoActivo.total}
+                      min={totalConServicio}
                       step="0.5"
-                      placeholder={`Mínimo S/ ${pedidoActivo.total.toFixed(2)}`}
+                      placeholder={`Mínimo S/ ${totalConServicio.toFixed(2)}`}
                       value={montoRecibido}
                       onChange={(e) => { setMontoRecibido(e.target.value); setErrorMsg(null) }}
                       style={{
@@ -308,7 +453,7 @@ export default function POSView() {
                 transition: 'all 0.2s',
               }}
             >
-              <CheckCircle size={22} /> Confirmar Cobro · S/ {pedidoActivo.total.toFixed(2)}
+              <CheckCircle size={22} /> Confirmar Cobro · S/ {totalConServicio.toFixed(2)}
             </button>
           </>
         )}
@@ -322,11 +467,14 @@ export default function POSView() {
           </div>
           <h2 className="font-display text-2xl font-black text-carbon mb-2">¡Cobro Exitoso!</h2>
           <p className="text-carbon/60 leading-relaxed mb-6">
-            La mesa ha sido liberada y el comprobante generado correctamente.
+            {successMsg}
           </p>
-          <Button variant="secondary" fullWidth onClick={() => setShowSuccess(false)}>
-            <Receipt size={18} /> Imprimir Comprobante
-          </Button>
+          <div className="flex flex-col gap-2 w-full">
+            <Button variant="secondary" fullWidth onClick={imprimirComprobante}>
+              <Receipt size={18} /> Imprimir comprobante
+            </Button>
+            <Button variant="ghost" fullWidth onClick={() => setShowSuccess(false)}>Listo</Button>
+          </div>
         </div>
       </Modal>
     </div>

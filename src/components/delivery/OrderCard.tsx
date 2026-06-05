@@ -83,8 +83,9 @@ export default function OrderCard({ pedido }: { pedido: any }) {
                   variant="secondary" 
                   className="flex items-center gap-2 border-blue-500/30 bg-blue-50/50 text-blue-600 hover:bg-blue-500 hover:text-white transition-colors"
                   onClick={() => {
-                    // Simular abrir Google Maps con la dirección
-                    addToast?.('Abriendo Google Maps...', 'success')
+                    const q = encodeURIComponent(pedido.direccion ?? '')
+                    window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank', 'noopener')
+                    addToast?.('Abriendo Google Maps…', 'success')
                   }}
                 >
                   <MapPin size={18} /> Abrir en Google Maps

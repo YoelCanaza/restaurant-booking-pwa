@@ -172,7 +172,7 @@ export const MOCK_PLATOS: Plato[] = [
 export const MOCK_MESAS: Mesa[] = [
   // ── Planta baja ──
   { id: 'mesa_01', numero: 1, capacidad: 2, estado: 'libre', piso: 1 },
-  { id: 'mesa_02', numero: 2, capacidad: 2, estado: 'comiendo', piso: 1 },
+  { id: 'mesa_02', numero: 2, capacidad: 2, estado: 'comiendo', pedidoId: 'ped_salon_02', piso: 1 },
   { id: 'mesa_03', numero: 3, capacidad: 4, estado: 'reservada', reservaId: 'res_01', piso: 1 },
   { id: 'mesa_04', numero: 4, capacidad: 4, estado: 'libre', piso: 1 },
   { id: 'mesa_05', numero: 5, capacidad: 6, estado: 'libre', piso: 1 },
@@ -266,6 +266,24 @@ export const MOCK_PEDIDOS: Pedido[] = [
     metodoPago: 'efectivo',
     estado: 'nuevo',
     createdAt: new Date(today.getTime() - 600000).toISOString(),
+  },
+  // Pedido de Salón — mesa 2, ya servido (cliente comiendo, listo para pedir cuenta)
+  {
+    id: 'ped_salon_02',
+    tipo: 'salon',
+    mesaId: 'mesa_02',
+    meseroId: 'usr_mesero_01',
+    clienteNombre: 'Mesa 2',
+    clienteTelefono: '',
+    items: [
+      { platoId: 'plato_01', nombre: 'Sopa de Quinua con Cordero', precio: 18.0, cantidad: 2 },
+      { platoId: 'plato_06', nombre: 'Lomo de Alpaca al Pisco', precio: 45.0, cantidad: 1 },
+      { platoId: 'plato_12', nombre: 'Chicha Morada de Ollantay', precio: 12.0, cantidad: 2 },
+    ],
+    total: 105.0,
+    estado: 'servido',
+    createdAt: new Date(today.getTime() - 2700000).toISOString(),
+    updatedAt: new Date(today.getTime() - 300000).toISOString(),
   },
   // Pedido de Salón — mesa 6, esperando de cocina
   {
@@ -388,6 +406,23 @@ interface AppState {
   ) => OperationResult
 
   /**
+   * El mesero sienta comensales en una mesa libre (libre → ocupada).
+   * Útil cuando llegan los clientes pero aún no piden.
+   */
+  sentarComensales: (mesaId: string) => OperationResult
+
+  /**
+   * Crea una comanda adicional para una mesa que ya tiene un pedido activo.
+   * Solo válido cuando la mesa está en 'comiendo' o 'esperando'.
+   * El cajero verá todas las comandas de la mesa al cobrar.
+   */
+  agregarComandaAdicional: (
+    mesaId: string,
+    items: Pedido['items'],
+    meseroId: string
+  ) => OperationResult
+
+  /**
    * El mesero solicita la cuenta: cambia el estado del pedido y la mesa.
    * La mesa pasa a 'pagando', el cajero verá el pedido en la cola de cobro.
    */
@@ -409,6 +444,10 @@ interface AppState {
   togglePlatoDisponible: (platoId: string, actorId: string, actorRole: string) => void
   updatePlatoPrecio: (platoId: string, precio: number) => void
   addPlato: (plato: Plato) => void
+  /** Edita campos de un plato existente (nombre, descripción, precio, categoría, imagen). */
+  updatePlato: (platoId: string, datos: Partial<Pick<Plato, 'nombre' | 'descripcion' | 'precio' | 'categoria' | 'imageUrl'>>) => void
+  /** Elimina un plato. Falla si hay pedidos activos que lo incluyen. */
+  eliminarPlato: (platoId: string) => OperationResult
 
   // ── Selectores ────────────────────────────────────────────────
   getPedidosByDelivery: (deliveryId: string) => Pedido[]
@@ -816,6 +855,55 @@ export const useAppStore = create<AppState>()(
         return { ok: true }
       },
 
+      sentarComensales: (mesaId) => {
+        const mesa = get().mesas.find((m) => m.id === mesaId)
+        if (!mesa) return { ok: false, error: 'Mesa no encontrada.' }
+        if (mesa.estado !== 'libre') return { ok: false, error: `La mesa ${mesa.numero} no está libre.` }
+        set((s) => {
+          const m = s.mesas.find((m) => m.id === mesaId)
+          if (m) m.estado = 'ocupada'
+        })
+        return { ok: true }
+      },
+
+      agregarComandaAdicional: (mesaId, items, meseroId) => {
+        const state = get()
+        const mesa = state.mesas.find((m) => m.id === mesaId)
+        if (!mesa) return { ok: false, error: 'Mesa no encontrada.' }
+        if (!['comiendo', 'esperando'].includes(mesa.estado)) {
+          return { ok: false, error: 'Solo se pueden agregar platos cuando la mesa está comiendo o esperando.' }
+        }
+        const platosNoDisponibles = items.filter((item) => {
+          const plato = state.platos.find((p) => p.id === item.platoId)
+          return !plato || !plato.disponible
+        })
+        if (platosNoDisponibles.length > 0) {
+          return { ok: false, error: `Platos no disponibles: ${platosNoDisponibles.map((i) => i.nombre).join(', ')}` }
+        }
+        const total = items.reduce((acc, item) => acc + item.precio * item.cantidad, 0)
+        const nuevoPedido: Pedido = {
+          id: generateId('ped'),
+          tipo: 'salon',
+          mesaId,
+          meseroId,
+          clienteNombre: `Mesa ${mesa.numero}`,
+          clienteTelefono: '',
+          items,
+          total,
+          estado: 'nuevo',
+          createdAt: nowISO(),
+          updatedAt: nowISO(),
+        }
+        set((s) => { s.pedidos.push(nuevoPedido) })
+        get().logActivity('pedido_creado', meseroId, 'mesero', nuevoPedido.id, {
+          tipo: 'salon_adicional',
+          mesaId,
+          total,
+          items: items.length,
+        })
+        return { ok: true }
+      },
+
       solicitarCuenta: (pedidoId) =>
         set((state) => {
           const p = state.pedidos.find((p) => p.id === pedidoId)
@@ -844,12 +932,22 @@ export const useAppStore = create<AppState>()(
           p.metodoPago = metodoPago
           p.updatedAt = nowISO()
 
-          // Liberar la mesa
+          // Liberar la mesa solo si no quedan otras comandas activas
           if (p.mesaId) {
             const mesa = s.mesas.find((m) => m.id === p.mesaId)
             if (mesa) {
-              mesa.estado = 'libre'
-              mesa.pedidoId = undefined
+              const otrasActivas = s.pedidos.filter(
+                (other) =>
+                  other.id !== pedidoId &&
+                  other.mesaId === p.mesaId &&
+                  other.tipo === 'salon' &&
+                  other.estado !== 'pagado' &&
+                  other.estado !== 'cancelado'
+              )
+              if (otrasActivas.length === 0) {
+                mesa.estado = 'libre'
+                mesa.pedidoId = undefined
+              }
             }
           }
         })
@@ -904,6 +1002,26 @@ export const useAppStore = create<AppState>()(
           state.platos.push(plato)
         }),
 
+      updatePlato: (platoId, datos) =>
+        set((state) => {
+          const p = state.platos.find((x) => x.id === platoId)
+          if (p) Object.assign(p, datos)
+        }),
+
+      eliminarPlato: (platoId) => {
+        // Bloquea si hay un pedido activo (no pagado/entregado/cancelado) que lo incluye
+        const enUso = get().pedidos.some(
+          (ped) =>
+            !['pagado', 'entregado', 'cancelado'].includes(ped.estado) &&
+            ped.items.some((it) => it.platoId === platoId)
+        )
+        if (enUso) {
+          return { ok: false, error: 'No se puede eliminar: hay pedidos activos que lo incluyen.' }
+        }
+        set((state) => { state.platos = state.platos.filter((x) => x.id !== platoId) })
+        return { ok: true }
+      },
+
       // ─────────────────────────────────────────────────────────
       // SELECTORES
       // ─────────────────────────────────────────────────────────
@@ -927,17 +1045,18 @@ export const useAppStore = create<AppState>()(
        */
       getPedidosPendientesCobro: () => {
         const { pedidos, mesas } = get()
-        const pedidosPagando = new Set(
-          mesas
-            .filter((m) => m.estado === 'pagando' && m.pedidoId)
-            .map((m) => m.pedidoId)
+        // Buscar por mesaId (no solo por mesa.pedidoId) para incluir
+        // comandas adicionales de la misma mesa.
+        const mesaIdsPagando = new Set(
+          mesas.filter((m) => m.estado === 'pagando').map((m) => m.id)
         )
         const cuentasSalon = pedidos.filter(
           (p) =>
             p.tipo === 'salon' &&
             p.estado !== 'pagado' &&
             p.estado !== 'cancelado' &&
-            pedidosPagando.has(p.id)
+            p.mesaId != null &&
+            mesaIdsPagando.has(p.mesaId)
         )
         const reconciliacionDelivery = pedidos.filter(
           (p) =>

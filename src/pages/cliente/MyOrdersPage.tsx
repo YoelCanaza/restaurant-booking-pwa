@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { PackageOpen } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
+import { useToastStore } from '../../store/useToastStore'
 import { useCurrentUser } from '../../hooks'
 import { visualPedido } from '../../lib/estados'
 import Button from '../../components/ui/Button'
@@ -13,11 +14,18 @@ import OrderTracker from '../../components/cliente/OrderTracker'
 export default function MyOrdersPage() {
   const user = useCurrentUser()
   const navigate = useNavigate()
-  
+  const cancelarPedidoDelivery = useAppStore((s) => s.cancelarPedidoDelivery)
+  const addToast = useToastStore((s) => s.addToast)
+
   // Pedidos de delivery del cliente logueado (por clienteId).
   const pedidos = useAppStore((s) => s.pedidos).filter(
     (p) => p.tipo === 'delivery' && p.clienteId === user?.id
   )
+
+  const handleCancelar = (pedidoId: string) => {
+    const r = cancelarPedidoDelivery(pedidoId, user?.id ?? '', 'cliente')
+    addToast(r.ok ? 'Pedido cancelado' : r.error ?? 'No se pudo cancelar', r.ok ? 'warning' : 'error')
+  }
 
   // Ordenar los más recientes primero
   const pedidosOrdenados = [...pedidos].sort((a, b) => 
@@ -79,9 +87,23 @@ export default function MyOrdersPage() {
               </div>
 
               <div className="flex justify-between items-center mt-2">
-                <span className="text-sm font-bold text-carbon/60">Total Pagado</span>
+                <span className="text-sm font-bold text-carbon/60">Total</span>
                 <span className="text-xl font-extrabold text-terracotta">S/ {pedido.total.toFixed(2)}</span>
               </div>
+
+              {pedido.estado === 'nuevo' && (
+                <button
+                  onClick={() => handleCancelar(pedido.id)}
+                  className="mt-3 w-full h-10 rounded-xl border border-error/30 text-error text-sm font-semibold hover:bg-error hover:text-white transition-colors"
+                >
+                  Cancelar pedido
+                </button>
+              )}
+              {pedido.estado === 'preparando' && (
+                <p className="mt-3 text-[11px] text-carbon/45 text-center">
+                  Ya está en preparación; para cancelar, contacta al restaurante.
+                </p>
+              )}
             </motion.div>
           ))}
           

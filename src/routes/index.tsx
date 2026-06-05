@@ -12,6 +12,7 @@ import RoleSelectorPage from '../pages/RoleSelectorPage'
 import LandingPage from '../pages/LandingPage'
 import LoginPage from '../pages/LoginPage'
 import RegisterPage from '../pages/RegisterPage'
+import ChangePasswordPage from '../pages/ChangePasswordPage'
 
 // Páginas cliente
 import ClientHome from '../pages/cliente/ClientHome'
@@ -19,6 +20,7 @@ import ReservationFlow from '../pages/cliente/ReservationFlow'
 import MyReservationsPage from '../pages/cliente/MyReservationsPage'
 import DeliveryMenu from '../pages/cliente/DeliveryMenu'
 import MyOrdersPage from '../pages/cliente/MyOrdersPage'
+import ClientProfilePage from '../pages/cliente/ClientProfilePage'
 
 // Páginas admin
 import AdminDashboard from '../pages/admin/AdminDashboard'
@@ -48,6 +50,11 @@ function RootRedirect() {
 
   if (!user) return <LandingPage />
 
+  // Personal con contraseña temporal: obligar a cambiarla en el primer ingreso
+  if (user.role !== 'cliente' && user.debeCambiarPassword) {
+    return <Navigate to="/cambiar-password" replace />
+  }
+
   // Redirección automática según rol
   const paths: Record<string, string> = {
     cliente: '/cliente',
@@ -66,6 +73,7 @@ export default function AppRoutes() {
       {/* ── Raíz y públicas ─────────────────────────────── */}
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/cambiar-password" element={<ChangePasswordPage />} />
       <Route path="/registro" element={<RegisterPage />} />
       <Route path="/demo" element={<RoleSelectorPage />} />
 
@@ -78,6 +86,7 @@ export default function AppRoutes() {
         <Route path="/cliente/reservas" element={<ProtectedRoute requiredRole="cliente"><MyReservationsPage /></ProtectedRoute>} />
         <Route path="/cliente/menu" element={<ProtectedRoute requiredRole="cliente"><DeliveryMenu /></ProtectedRoute>} />
         <Route path="/cliente/pedidos" element={<ProtectedRoute requiredRole="cliente"><MyOrdersPage /></ProtectedRoute>} />
+        <Route path="/cliente/perfil" element={<ProtectedRoute requiredRole="cliente"><ClientProfilePage /></ProtectedRoute>} />
         
         {/* Rutas de Delivery */}
         <Route path="/delivery" element={<ProtectedRoute requiredRole="delivery"><DeliveryView /></ProtectedRoute>} />

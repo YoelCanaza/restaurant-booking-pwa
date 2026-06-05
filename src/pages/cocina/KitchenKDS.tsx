@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
+import { Ban } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
 import { useAuthStore } from '../../store/useAuthStore'
+import { useToastStore } from '../../store/useToastStore'
 import type { EstadoPedido } from '../../types'
 import TicketCard from '../../components/cocina/TicketCard'
 import Modal from '../../components/ui/Modal'
@@ -14,11 +16,18 @@ const COLUMNS: { id: EstadoPedido; title: string; color: string }[] = [
 ]
 
 export default function KitchenKDS() {
-  const { pedidos, updatePedidoEstado } = useAppStore()
+  const { pedidos, updatePedidoEstado, platos, togglePlatoDisponible } = useAppStore()
   const { user } = useAuthStore()
+  const addToast = useToastStore((s) => s.addToast)
   const [recipeModal, setRecipeModal] = useState<string | null>(null)
+  const [showAgotados, setShowAgotados] = useState(false)
 
   const cocinaId = user?.id ?? 'usr_cocina_01'
+
+  const toggleAgotado = (platoId: string, nombre: string, disponible: boolean) => {
+    togglePlatoDisponible(platoId, cocinaId, 'cocina')
+    addToast(`${nombre} ${disponible ? 'marcado como agotado' : 'vuelve a estar disponible'}`, disponible ? 'warning' : 'success')
+  }
 
   const handleDragEnd = (result: DropResult) => {
     const { source, destination, draggableId } = result
@@ -47,7 +56,17 @@ export default function KitchenKDS() {
   )
 
   return (
-    <div style={{ height: '100%', display: 'flex', gap: '1rem' }}>
+    <div className="flex flex-col h-full gap-3">
+      <div className="flex items-center justify-between shrink-0">
+        <span className="text-xs font-bold uppercase tracking-wider text-carbon/40">Cola de preparación</span>
+        <button
+          onClick={() => setShowAgotados(true)}
+          className="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg bg-white border border-carbon/[0.08] text-sm font-semibold text-carbon/70 hover:text-error hover:border-error/40 transition-colors"
+        >
+          <Ban size={16} /> Marcar plato agotado
+        </button>
+      </div>
+      <div style={{ flex: 1, display: 'flex', gap: '1rem', minHeight: 0 }}>
       <DragDropContext onDragEnd={handleDragEnd}>
         {COLUMNS.map((col) => {
           // Ordenamos por fecha de creación (FIFO)
@@ -134,6 +153,7 @@ export default function KitchenKDS() {
           )
         })}
       </DragDropContext>
+      </div>
 
       {/* Modal de Receta (demo) */}
       <Modal
@@ -147,6 +167,32 @@ export default function KitchenKDS() {
           Aquí se mostraría la imagen del emplatado, los ingredientes exactos y las
           instrucciones de preparación paso a paso.
         </p>
+      </Modal>
+
+      {/* Modal: marcar platos agotados */}
+      <Modal
+        open={showAgotados}
+        onClose={() => setShowAgotados(false)}
+        title="Disponibilidad de platos"
+        subtitle="Marca lo que se acabó; deja de aparecer para el cliente"
+      >
+        <div className="flex flex-col divide-y divide-carbon/[0.07] -my-1">
+          {platos.map((p) => (
+            <div key={p.id} className="flex items-center justify-between gap-3 py-2.5">
+              <span className={`font-semibold ${p.disponible ? 'text-carbon' : 'text-carbon/40 line-through'}`}>{p.nombre}</span>
+              <button
+                onClick={() => toggleAgotado(p.id, p.nombre, p.disponible)}
+                className={`h-8 px-3 rounded-lg text-sm font-bold border transition-colors shrink-0 ${
+                  p.disponible
+                    ? 'border-carbon/[0.08] text-carbon/60 hover:bg-error hover:text-white hover:border-error'
+                    : 'border-success/40 bg-success/10 text-success hover:bg-success hover:text-white'
+                }`}
+              >
+                {p.disponible ? 'Marcar agotado' : 'Reactivar'}
+              </button>
+            </div>
+          ))}
+        </div>
       </Modal>
     </div>
   )

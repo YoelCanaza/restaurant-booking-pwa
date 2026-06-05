@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { UserPlus, Users, Phone } from 'lucide-react'
+import { UserPlus, Users, Phone, KeyRound, RefreshCw } from 'lucide-react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useToastStore } from '../../store/useToastStore'
 import { useCurrentUser } from '../../hooks'
@@ -35,19 +35,27 @@ export default function StaffAdminPage() {
   const [nombre, setNombre] = useState('')
   const [telefono, setTelefono] = useState('')
   const [rol, setRol] = useState<Exclude<UserRole, 'cliente' | 'admin'>>('mesero')
+  const [password, setPassword] = useState('')
+  // Credencial recién creada para que el admin la entregue al empleado
+  const [credencial, setCredencial] = useState<{ name: string; phone: string; password: string } | null>(null)
 
-  const resetForm = () => { setNombre(''); setTelefono(''); setRol('mesero') }
+  const generarPassword = () => setPassword('RA-' + Math.random().toString(36).slice(2, 7).toUpperCase())
+  const resetForm = () => { setNombre(''); setTelefono(''); setRol('mesero'); setPassword('') }
+  const abrirModal = () => { resetForm(); setCredencial(null); generarPassword(); setModalOpen(true) }
+  const cerrarModal = () => { setModalOpen(false); setCredencial(null); resetForm() }
 
   const handleCrear = () => {
     if (!nombre.trim() || !/^\d{9}$/.test(telefono)) {
       addToast('Completa el nombre y un teléfono de 9 dígitos', 'error')
       return
     }
-    const r = addEmpleado({ name: nombre.trim(), phone: telefono, role: rol }, adminId)
+    if (password.trim().length < 4) {
+      addToast('La contraseña temporal debe tener al menos 4 caracteres', 'error')
+      return
+    }
+    const r = addEmpleado({ name: nombre.trim(), phone: telefono, role: rol, password: password.trim() }, adminId)
     if (r.ok) {
-      addToast(`${nombre.trim()} agregado como ${roleLabel(rol)}`, 'success')
-      setModalOpen(false)
-      resetForm()
+      setCredencial({ name: nombre.trim(), phone: telefono, password: password.trim() })
     } else {
       addToast(r.error ?? 'No se pudo crear el empleado', 'error')
     }
@@ -72,7 +80,7 @@ export default function StaffAdminPage() {
         title="Personal"
         subtitle={`${empleados.length} miembros del equipo`}
         action={
-          <Button onClick={() => setModalOpen(true)}>
+          <Button onClick={abrirModal}>
             <UserPlus size={18} /> Agregar empleado
           </Button>
         }
@@ -139,39 +147,83 @@ export default function StaffAdminPage() {
       {/* Modal: nuevo empleado */}
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Nuevo empleado"
-        subtitle="Crea credenciales para un miembro del equipo"
+        onClose={cerrarModal}
+        title={credencial ? 'Empleado creado' : 'Nuevo empleado'}
+        subtitle={credencial ? 'Entrega estas credenciales al empleado' : 'Crea credenciales para un miembro del equipo'}
         footer={
-          <div className="flex gap-3">
-            <Button variant="ghost" onClick={() => setModalOpen(false)} className="flex-1">Cancelar</Button>
-            <Button onClick={handleCrear} className="flex-1">Crear empleado</Button>
-          </div>
+          credencial ? (
+            <Button onClick={cerrarModal} fullWidth>Listo</Button>
+          ) : (
+            <div className="flex gap-3">
+              <Button variant="ghost" onClick={cerrarModal} className="flex-1">Cancelar</Button>
+              <Button onClick={handleCrear} className="flex-1">Crear empleado</Button>
+            </div>
+          )
         }
       >
-        <div className="flex flex-col gap-4">
-          <Input label="Nombre completo" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Rosa Mamani" />
-          <Input label="Teléfono (9 dígitos)" value={telefono} onChange={(e) => setTelefono(e.target.value)} inputMode="numeric" placeholder="9XXXXXXXX" />
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-carbon/60 uppercase tracking-wider pl-1">Rol</label>
-            <div className="grid grid-cols-2 gap-2">
-              {ROLES_EMPLEADO.map((r) => (
+        {credencial ? (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col items-center text-center gap-1 pb-2">
+              <span className="w-12 h-12 rounded-full bg-success/10 text-success flex items-center justify-center mb-1">
+                <KeyRound size={22} />
+              </span>
+              <p className="font-display font-bold text-carbon m-0">{credencial.name}</p>
+              <p className="text-sm text-carbon/50 m-0">{roleLabel(rol)}</p>
+            </div>
+            <div className="rounded-xl border border-carbon/[0.08] divide-y divide-carbon/[0.06]">
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-sm text-carbon/55">Usuario (teléfono)</span>
+                <span className="font-bold text-carbon tabular-nums">{credencial.phone}</span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-sm text-carbon/55">Contraseña temporal</span>
+                <span className="font-bold text-terracotta tracking-wide">{credencial.password}</span>
+              </div>
+            </div>
+            <p className="text-xs text-carbon/45 leading-relaxed">
+              Comparte estas credenciales con el empleado. Deberá cambiar la contraseña en su primer ingreso.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <Input label="Nombre completo" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Rosa Mamani" icon={<UserPlus size={18} />} />
+            <Input label="Teléfono (9 dígitos)" value={telefono} onChange={(e) => setTelefono(e.target.value)} inputMode="numeric" placeholder="9XXXXXXXX" icon={<Phone size={18} />} />
+
+            {/* Contraseña temporal */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-carbon/60 uppercase tracking-wider pl-1">Contraseña temporal</label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Contraseña" icon={<KeyRound size={18} />} />
+                </div>
                 <button
-                  key={r.id}
-                  onClick={() => setRol(r.id)}
-                  className={`h-11 rounded-xl text-sm font-bold border-2 transition-colors ${
-                    rol === r.id ? 'border-terracotta bg-terracotta/10 text-terracotta' : 'border-carbon/[0.08] bg-white text-carbon/70 hover:border-carbon/20'
-                  }`}
+                  type="button"
+                  onClick={generarPassword}
+                  className="h-12 px-3 rounded-xl border-2 border-carbon/[0.08] text-carbon/60 hover:border-terracotta hover:text-terracotta transition-colors inline-flex items-center gap-1.5 text-sm font-semibold shrink-0"
                 >
-                  {r.label}
+                  <RefreshCw size={16} /> Generar
                 </button>
-              ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-carbon/60 uppercase tracking-wider pl-1">Rol</label>
+              <div className="grid grid-cols-2 gap-2">
+                {ROLES_EMPLEADO.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => setRol(r.id)}
+                    className={`h-11 rounded-xl text-sm font-bold border-2 transition-colors ${
+                      rol === r.id ? 'border-terracotta bg-terracotta/10 text-terracotta' : 'border-carbon/[0.08] bg-white text-carbon/70 hover:border-carbon/20'
+                    }`}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-          <p className="text-xs text-carbon/45 leading-relaxed">
-            Se crea con una contraseña temporal (demo). El empleado podrá cambiarla en su primer ingreso cuando exista login real.
-          </p>
-        </div>
+        )}
       </Modal>
     </div>
   )

@@ -53,9 +53,13 @@ export default function ClientHome() {
             <p className="text-[11px] md:text-xs font-semibold uppercase tracking-[0.22em] text-amber">
               Gastronomía puneña · Puno
             </p>
-            <span className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/15 px-3 py-1.5 rounded-full text-xs font-semibold text-white/90" title="1 punto por cada S/1 en pedidos pagados">
+            <button
+              onClick={() => navigate('/cliente/perfil')}
+              className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/15 px-3 py-1.5 rounded-full text-xs font-semibold text-white/90 hover:bg-white/20 transition-colors"
+              title="Ver mi cuenta"
+            >
               <Star size={13} className="fill-amber text-amber" /> {puntos} pts
-            </span>
+            </button>
           </div>
 
           <h1 className="font-display text-[2.1rem] md:text-5xl font-black leading-[1.05] tracking-tight m-0 max-w-[18ch]">

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ShoppingBag, X, Minus, Plus, MapPin, Wallet } from 'lucide-react'
+import { ShoppingBag, X, Minus, Plus, MapPin, Wallet, LocateFixed, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../../store/useAppStore'
 import { useAuthStore } from '../../store/useAuthStore'
@@ -28,6 +28,7 @@ export default function CartDrawer({ onSuccess }: CartDrawerProps) {
   // Datos de contacto para invitados (registro invisible al confirmar)
   const [nombreInv, setNombreInv] = useState('')
   const [telefonoInv, setTelefonoInv] = useState('')
+  const [ubicando, setUbicando] = useState(false)
 
   const user = useCurrentUser()
   const navigate = useNavigate()
@@ -41,6 +42,36 @@ export default function CartDrawer({ onSuccess }: CartDrawerProps) {
 
   const cartTotal = cart.reduce((acc, item) => acc + item.plato.precio * item.cantidad, 0)
   const cartCount = cart.reduce((acc, item) => acc + item.cantidad, 0)
+
+  const usarUbicacionActual = () => {
+    if (!('geolocation' in navigator)) {
+      addToast('Tu dispositivo no soporta geolocalización', 'error')
+      return
+    }
+    setUbicando(true)
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords
+        try {
+          // Reverse-geocoding gratuito (OpenStreetMap), sin API key
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=es`)
+          const data = await res.json()
+          setDireccion(data?.display_name || `Mi ubicación (${lat.toFixed(5)}, ${lng.toFixed(5)})`)
+          addToast('Ubicación detectada. Revísala y agrega referencias.', 'success')
+        } catch {
+          setDireccion(`Mi ubicación (${lat.toFixed(5)}, ${lng.toFixed(5)})`)
+          addToast('Ubicación detectada (sin dirección exacta)', 'success')
+        } finally {
+          setUbicando(false)
+        }
+      },
+      (err) => {
+        setUbicando(false)
+        addToast(err.code === err.PERMISSION_DENIED ? 'Permiso de ubicación denegado' : 'No se pudo obtener tu ubicación', 'error')
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }
 
   const handleOrder = () => {
     if (!direccion) return
@@ -247,6 +278,20 @@ export default function CartDrawer({ onSuccess }: CartDrawerProps) {
                   <label className="text-xs font-bold text-carbon/60 uppercase tracking-wider pl-1 flex items-center gap-1.5">
                     <MapPin size={14} /> Dirección de entrega
                   </label>
+
+                  {/* Opción 1: ubicación actual (GPS) */}
+                  <button
+                    type="button"
+                    onClick={usarUbicacionActual}
+                    disabled={ubicando}
+                    className="w-full h-12 rounded-xl border-2 border-terracotta/40 bg-terracotta/5 text-terracotta font-bold text-sm inline-flex items-center justify-center gap-2 hover:bg-terracotta/10 disabled:opacity-60 transition-colors"
+                  >
+                    {ubicando ? <Loader2 size={18} className="animate-spin" /> : <LocateFixed size={18} />}
+                    {ubicando ? 'Obteniendo ubicación…' : 'Usar mi ubicación actual'}
+                  </button>
+
+                  {/* Opción 2: escribir / ajustar */}
+                  <p className="text-[11px] text-carbon/40 text-center -my-0.5">o escribe tu dirección</p>
                   <input
                     type="text"
                     value={direccion}

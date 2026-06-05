@@ -68,6 +68,10 @@ const INITIAL_USERS: User[] = [
   },
 ]
 
+// Contraseña temporal demo para las cuentas internas sembradas (mock).
+// En backend esto será hashing real con Supabase Auth.
+INITIAL_USERS.forEach((u) => { if (u.role !== 'cliente') u.password = 'demo1234' })
+
 /** Mapa rápido id → User. Útil para el RoleSelector de desarrollo. */
 export const MOCK_USERS: Record<UserRole, User> = {
   cliente: INITIAL_USERS.find((u) => u.role === 'cliente')!,
@@ -102,6 +106,12 @@ interface AuthState {
    */
   loginPorTelefono: (phone: string) => OperationResult
 
+  /** Login de personal/admin: teléfono + contraseña (valida contra el mock). */
+  loginConPassword: (phone: string, password: string) => OperationResult
+
+  /** El usuario actual cambia su propia contraseña (primer ingreso del personal). */
+  cambiarPasswordPropia: (nuevaPassword: string) => OperationResult
+
   /**
    * Utility de desarrollo: carga el usuario mock del rol dado.
    * Simula el login sin contraseña — NO usar en producción.
@@ -115,7 +125,7 @@ interface AuthState {
    * Solo el admin puede invocar esto. Los clientes se auto-registran.
    */
   addEmpleado: (
-    datos: { name: string; phone: string; role: UserRole; avatarInitials?: string },
+    datos: { name: string; phone: string; role: UserRole; avatarInitials?: string; password?: string },
     adminId: string
   ) => OperationResult
 
@@ -172,6 +182,28 @@ export const useAuthStore = create<AuthState>()(
         return { ok: true }
       },
 
+      loginConPassword: (phone, password) => {
+        const u = get().users.find((x) => x.phone === phone.trim())
+        if (!u) return { ok: false, error: 'No encontramos una cuenta con ese teléfono.' }
+        if (u.role === 'cliente') return { ok: false, error: 'Esa cuenta es de cliente. Ingresa con Google o como invitado.' }
+        if (!u.activo) return { ok: false, error: 'Tu cuenta está desactivada. Contacta al administrador.' }
+        if ((u.password ?? '') !== password) return { ok: false, error: 'Contraseña incorrecta.' }
+        set({ user: u })
+        return { ok: true }
+      },
+
+      cambiarPasswordPropia: (nuevaPassword) => {
+        const actual = get().user
+        if (!actual) return { ok: false, error: 'No hay sesión activa.' }
+        if (nuevaPassword.trim().length < 4) return { ok: false, error: 'La contraseña debe tener al menos 4 caracteres.' }
+        set((s) => {
+          const u = s.users.find((x) => x.id === actual.id)
+          if (u) { u.password = nuevaPassword.trim(); u.debeCambiarPassword = false }
+          if (s.user) { s.user.password = nuevaPassword.trim(); s.user.debeCambiarPassword = false }
+        })
+        return { ok: true }
+      },
+
       switchRole: (role) => {
         const mockUser = MOCK_USERS[role]
         set({ user: mockUser })
@@ -210,6 +242,8 @@ export const useAuthStore = create<AuthState>()(
           activo: true,
           createdAt: new Date().toISOString(),
           creadoPorAdminId: adminId,
+          password: datos.password,
+          debeCambiarPassword: true,
         }
 
         set((s) => { s.users.push(nuevoEmpleado) })
@@ -344,6 +378,17 @@ export const useAuthStore = create<AuthState>()(
     })),
     {
       name: 'rincon-andino-auth',
+      // Re-sembrar usuarios (las cuentas internas ahora traen contraseña demo)
+      // y forzar re-login. Conserva nada del estado de sesión previo.
+      version: 1,
+      migrate: (persisted) => {
+        const p = persisted as Record<string, unknown> | undefined
+        if (p) {
+          delete p.users
+          delete p.user
+        }
+        return p as unknown as AuthState
+      },
     }
   )
 )

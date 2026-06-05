@@ -111,14 +111,15 @@ Decisiones de producto tomadas (mayo 2026), fundamentadas en principios de UX (c
 
 **B. Invitado primero, cuenta opcional (NO se obliga a registrarse).** El cliente puede **pedir y reservar como invitado**, ingresando solo los datos que la acción ya necesita (nombre, teléfono, [dirección]) — **sin cuenta, sin contraseña, sin muro**. Tras confirmar, se ofrece (opcional, descartable) **crear cuenta con Google** como *incentivo* ("guarda tu historial y junta puntos"), nunca como obstáculo. Se conserva el progreso (carrito/datos) si decide autenticarse (return path).
 - **Compromisos del invitado:** sin cuenta no hay historial entre sesiones ni puntos; los límites (1 pedido activo, 2 reservas) y el no-show se controlan de forma más débil (por teléfono). Esto hace de la cuenta un beneficio deseable, no una obligación.
+- **Seguridad (importante).** El "invitado" no es anónimo: al confirmar se crea/asocia una cuenta por teléfono (hay rastro y responsabilidad). Riesgos reales: **reserva** = bajo (gratis; mitigado por la política de no-show §6.4). **Delivery** = el clásico riesgo de **pedidos falsos** en pago contra entrega (preparar comida / mover repartidor sin que haya nadie). Mitigaciones actuales: 1 pedido activo por teléfono, sin pago anticipado, el admin puede cancelar. **Salvaguarda recomendada (backend):** **verificación de teléfono por OTP** antes del primer pedido de delivery (confirma que el número es real) — es lo que hacen las apps de delivery para frenar pedidos falsos. Hoy (mock) no hay verificación: es aceptable para demo, no para producción.
 
-**C. Autenticación: Google (un toque), sin contraseñas para clientes.** Se eligió **Google OAuth** como método de inicio de sesión. Ventaja clave: **no hay contraseña que perder** (elimina el flujo de "olvidé mi contraseña"). No se usa OTP por SMS por ahora (costo). **Roadmap:** una segunda vía **teléfono + OTP** para clientes *phone-first* queda como opción futura; no bloquea porque el invitado siempre puede operar sin cuenta.
-- **Cliente:** invitado, o **Continuar con Google** (opcional).
-- **Personal** (mesero/cocina/caja/delivery): el **admin los provisiona invitando su correo (Google)** y les asigna el rol; ingresan con **Google** (sin contraseña). *(Mock actual: alta por teléfono en `/admin/personal`; se migrará a invitación por correo al cablear backend.)*
+**C. Autenticación — dos modelos según audiencia:**
+- **Clientes (externos): Google (un toque) o invitado.** Sin contraseña → no hay "contraseña perdida". Roadmap: teléfono + OTP para *phone-first* (no bloquea porque el invitado siempre opera). No se auto-registra contraseña.
+- **Personal (mesero/cocina/caja/delivery): usuario (teléfono) + contraseña temporal que asigna el admin.** El admin crea la cuenta en `/admin/personal`, define/genera una contraseña temporal y se la entrega; el empleado la cambia en su primer ingreso (`debeCambiarPassword`). Es lo correcto para cuentas internas (el personal suele no usar Google; el admin controla el alta de punta a punta, como un POS). *Esto recupera el modelo del §3.2.*
 - **Admin:** **sembrado** en la instalación inicial (seed/migración). No se auto-registra.
 - Acceso de demostración por rol en `/demo` para sustentación.
 
-**D. Recuperación de cuenta.** Al ser passwordless (Google), no aplica "recuperar contraseña". La recuperación la gestiona Google. Para personal, si pierde acceso, el admin reasigna/reinvita (§3.2).
+**D. Recuperación de cuenta.** Clientes (Google): la gestiona Google, no hay contraseña que recuperar. Personal: si olvida su contraseña, **el admin la resetea** (§3.2) — no hay autoservicio de recuperación para cuentas internas.
 
 **E. Reserva sin costo (recuerdo §6.5).** Reservar es gratis (invitado o con cuenta). La cuenta sirve para gestionar/seguir la reserva y aplicar no-show, nunca para cobrar.
 
