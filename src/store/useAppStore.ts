@@ -696,7 +696,10 @@ export const useAppStore = create<AppState>()(
           ...pedidoData,
           id: generateId('ped'),
           tipo: 'delivery',
-          estado: 'nuevo',
+          // Demo: auto-asignar al repartidor mock y poner en camino
+          // para que el flujo cliente→delivery sea demostrable sin pasar por cocina/admin
+          estado: 'en_camino',
+          deliveryId: 'usr_delivery_01',
           createdAt: nowISO(),
           updatedAt: nowISO(),
         }
