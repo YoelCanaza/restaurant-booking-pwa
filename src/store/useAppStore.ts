@@ -1083,14 +1083,14 @@ export const useAppStore = create<AppState>()(
       // Subir la versión cuando cambian los datos semilla (p.ej. imágenes del
       // catálogo). La migración descarta el catálogo persistido para que se
       // tomen los MOCK_PLATOS frescos del código; conserva reservas/pedidos.
-      version: 5,
+      version: 6,
       migrate: (persisted) => {
-        // Descarta catálogo y mesas persistidos para tomar los MOCK_* frescos
-        // (imágenes de platos + mesas con piso/rooftop). Conserva reservas/pedidos.
+        // Descarta catálogo, mesas y pedidos para tomar los MOCK_* frescos.
         const p = persisted as Record<string, unknown> | undefined
         if (p) {
           delete p.platos
           delete p.mesas
+          delete p.pedidos
         }
         return p as unknown as AppState
       },
