@@ -1,119 +1,174 @@
-# 🥘 Rincón Andino PWA — Rediseño Gastronómico con Enfoque HCI
+# Rincón Andino PWA
 
-[![React](https://img.shields.io/badge/React-19-blue.svg)](https://reactjs.org/)
-[![Vite](https://img.shields.io/badge/Vite-8-purple.svg)](https://vitejs.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-blueviolet.svg)](https://tailwindcss.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+> Sistema de gestión gastronómica para restaurante de cocina puneña — rediseñado con enfoque en Interacción Humano-Computador (HCI).
 
-**Rincón Andino** es una Progressive Web App (PWA) diseñada para modernizar la experiencia gastronómica en la región de Puno, Perú. Este proyecto se centra en la aplicación de principios avanzados de **Interacción Humano-Computador (HCI)** y las **10 Heurísticas de Nielsen** para ofrecer una interfaz intuitiva, eficiente y visualmente impactante, abarcando no solo la experiencia del comensal, sino toda la operación interna del restaurante.
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Zustand](https://img.shields.io/badge/Zustand-5-orange)](https://github.com/pmndrs/zustand)
+[![Deploy](https://img.shields.io/badge/Vercel-Live-black?logo=vercel)](https://restaurant-booking-pwa.vercel.app/)
 
----
-
-## 🚀 Características Principales
-
-El sistema aborda las necesidades de **6 roles** distintos, cada uno con una interfaz adaptada a su contexto de uso (Mobile-first, Desktop-first o KDS-first):
-
-### 👤 Rol: Cliente (Comensal)
-- **Menú Digital Interactivo**: Exploración de platos con imágenes, categorización fluida y gestión de expectativas (tiempo de preparación).
-- **Reserva Visual de Mesas**: Selección interactiva de mesas mediante un plano SVG en tiempo real.
-- **Order Tracker (Domino's Style)**: Seguimiento en vivo del estado del pedido delivery (Nuevo → Preparando → En Camino → Entregado) con ETA dinámico.
-- **Flujo de Invitado**: Capacidad de realizar pedidos sin registrarse obligatoriamente, con incentivo de puntos de fidelidad para usuarios con cuenta.
-
-### 🏔️ Rol: Administrador (Gestión)
-- **Dashboard de KPIs**: Visualización en tiempo real de ingresos, pedidos activos, reservas y ocupación de mesas.
-- **Plano de Planta Dinámico**: Control total sobre el estado físico de las mesas (`libre`, `ocupada`, `reservada`).
-- **Gestión de Menú**: Actualización instantánea de precios, disponibilidad de platos y adición de nuevos elementos.
-
-### 🍽️ Rol: Mesero (Salón)
-- **Dashboard Móvil**: Visualización rápida del plano de mesas para conocer el estado y disponibilidad de su zona.
-- **Toma de Comandas Ágil**: Selección de platos directamente en la mesa con soporte para notas o requerimientos especiales (ej. "sin picante").
-- **Flujo de Servicio Integrado**: Solicitar cuenta al cajero (`pagando`) y marcar platos de cocina como servidos al cliente.
-
-### 👨‍🍳 Rol: Cocina (KDS - Kitchen Display System)
-- **Kanban Optimizado (Drag & Drop)**: Vista de tarjetas de pedidos ordenadas de manera FIFO.
-- **Control de Estados Rápidos**: Interfaz pensada para avanzar pedidos (`nuevo` → `preparando` → `listo`) adaptada para pantallas táctiles de gran tamaño y uso con manos ocupadas.
-
-### 💰 Rol: Cajero (POS)
-- **Punto de Venta Centralizado**: Cola automática de mesas y pedidos en estado de cobro.
-- **Cálculo Automático**: Desglose de consumos, selección de métodos de pago (Efectivo/Yape/Plin/Tarjeta), cálculo de vueltos y liberación de la mesa al confirmar.
-
-### 🛵 Rol: Repartidor (Delivery)
-- **Panel de Entregas**: Gestión de pedidos asignados y visualización de totales a cobrar en pagos contra entrega.
-- **Navegación Delegada**: Integración directa con Google Maps para cálculo de rutas eficientes.
-- **Swipe-to-Confirm**: Interacción tipo deslizamiento para marcar entregas, previniendo toques accidentales mientras se conduce (Ley de Fitts).
+**[Ver demo en vivo →](https://restaurant-booking-pwa.vercel.app/)**
 
 ---
 
-## 🧠 Estrategia de Diseño UI/UX (HCI)
+## Sobre el proyecto
 
-El proyecto implementa rigurosamente principios avanzados de experiencia de usuario:
-- **Heurísticas de Nielsen**: 
-  - *Visibilidad del estado del sistema (H1)* mediante trackers y actualización en tiempo real de mesas/pedidos.
-  - *Prevención de errores (H5)* con interacciones como "Swipe-to-confirm" o confirmaciones críticas antes de cancelar.
-  - *Consistencia y Estándares (H4)* usando el mismo design system para 6 layouts diferentes.
-- **Leyes de Miller y Fitts**: Agrupación inteligente de elementos para bajar la carga cognitiva, áreas táctiles amplias (≥ 44px) y navegación inferior (Navegación de Pulgar) para móviles.
-- **Sistema "Rústico Moderno"**: Paleta de colores cálida inspirada en la cultura andina/puneña (Terracotta, Bone, Carbon, Amber), enriquecida con sombras suaves, componentes Glassmorphism y tipografías nítidas (Inter).
-- **Tres Layouts Contextuales**: Se definen `MobileLayout` para uso en calle y mesas, `DesktopLayout` para las labores de caja/admin, y `KdsLayout` en modo oscuro para los cocineros.
+Rincón Andino es una **Progressive Web App** que digitaliza la operación completa de un restaurante: desde que el cliente navega el menú hasta que el cajero cierra el cobro. El rediseño aplica las **10 heurísticas de Nielsen**, la **Ley de Fitts**, la **Ley de Miller** y principios de diseño Gestalt a cada pantalla del sistema.
 
-*Para un análisis más profundo, consulta nuestra [Estrategia UI/UX](UX_UI_DESIGN.md), [Lógica de Negocio](BUSINESS_LOGIC.md) y [Arquitectura](ARCHITECTURE.md).*
+El proyecto cubre **6 roles** con interfaces completamente distintas, cada uno optimizado para su contexto de uso:
 
----
-
-## 🛠️ Stack Tecnológico
-
-- **Frontend**: [React 19](https://reactjs.org/) + [TypeScript](https://www.typescriptlang.org/)
-- **Build Tool**: [Vite 8](https://vitejs.dev/)
-- **Estilos**: [Tailwind CSS 4](https://tailwindcss.com/)
-- **Animaciones**: [Framer Motion](https://www.framer.com/motion/)
-- **Estado Global**: [Zustand 5](https://github.com/pmndrs/zustand) + [Immer](https://immerjs.github.io/immer/)
-- **Iconos**: [Lucide React](https://lucide.dev/)
-- **Interacciones Avanzadas**: [@hello-pangea/dnd](https://github.com/hello-pangea/dnd) para KDS
-- **PWA**: Configuración de manifest y offline features usando `vite-plugin-pwa`
+| Rol | Dispositivo principal | Layout |
+|-----|----------------------|--------|
+| Cliente | Celular | Mobile-first + BottomNav |
+| Mesero | Celular | Mobile-first + BottomNav |
+| Cocina | Pantalla grande (KDS) | KdsLayout — alto contraste |
+| Cajero | Escritorio / tablet | Desktop-first + SidebarNav |
+| Administrador | Escritorio | Desktop-first + SidebarNav |
+| Repartidor | Celular | Mobile-first + BottomNav |
 
 ---
 
-## 📦 Instalación y Uso
+## Funcionalidades por rol
 
-1. **Clonar el repositorio**
-   ```bash
-   git clone https://github.com/TuUsuario/rediseño-rincon-andino.git
-   cd rediseño-rincon-andino
-   ```
+### Cliente
+- Navegación del menú sin login — *invitado primero, registro diferido al confirmar*
+- Reserva de mesa con plano SVG interactivo del restaurante (*mundo en miniatura*)
+- Order tracker en tiempo real: Recibido → Preparando → En Camino → Entregado
+- Carrito persistente con drawer lateral y cálculo de total en vivo
 
-2. **Instalar dependencias**
-   ```bash
-   npm install
-   ```
+### Mesero
+- Plano de mesas con estado por color (libre / ocupada / reservada / pagando)
+- Toma de comandas y soporte para pedidos adicionales sin cerrar la mesa
+- Flujo de "pedir cuenta" que notifica al cajero directamente
 
-3. **Ejecutar en modo desarrollo**
-   ```bash
-   npm run dev
-   ```
+### Cocina (KDS)
+- Cola FIFO de pedidos con temporizador de espera
+- Avance de estado por ticket: nuevo → preparando → listo
+- Reordenamiento manual con drag & drop
 
-4. **Construir para producción**
-   ```bash
-   npm run build
-   ```
+### Cajero (POS)
+- Cola automática de cobros pendientes (salón en estado *pagando* + delivery en efectivo)
+- Comprobante con desglose: subtotal, IGV 18 %, servicio 10 %
+- Validación de monto antes de confirmar el pago
+
+### Administrador
+- Dashboard con KPIs: ingresos del día, mesas ocupadas, pedidos activos
+- Gestión de menú (precios, disponibilidad, nuevos platos)
+- Gestión de reservas, pedidos, personal y clientes
+
+### Repartidor
+- Panel de entregas asignadas con totales de cobro por turno
+- Integración con Google Maps para navegación externa
+- Swipe-to-confirm para marcar entregas (previene toques accidentales en movimiento)
 
 ---
 
-## 📂 Estructura del Proyecto
+## Principios HCI aplicados
 
-```text
-src/
-├── components/     # Componentes UI reutilizables y layouts específicos (mobile, desktop, kds)
-├── hooks/          # Hooks personalizados de UI y estados de formulario
-├── pages/          # Vistas principales y dashboards para los 6 roles
-├── store/          # Gestión de estado global con Zustand y simulación de persistencia de datos
-├── types/          # Tipados de TypeScript (entidades relacionales, eventos, etc.)
-└── routes/         # Configuración de rutas protegidas y públicas
+**Heurísticas de Nielsen:**
+
+| # | Heurística | Dónde se ve |
+|---|------------|-------------|
+| H1 | Visibilidad del estado | OrderTracker, badges de cocina, colores de mesa |
+| H2 | Mundo real | Plano SVG, lenguaje de dominio ("comanda", "pedir cuenta") |
+| H3 | Control y libertad | Cancelar reserva, cerrar modales, deshacer carrito |
+| H4 | Consistencia | StepIndicator en reservas, mismo design system en 6 layouts |
+| H5 | Prevención de errores | SwipeToConfirm, validación de monto en caja, confirmación en acciones críticas |
+| H6 | Reconocer antes que recordar | Imágenes en menú, carrito siempre visible, resumen antes de confirmar |
+| H7 | Flexibilidad | Accesos directos en admin dashboard, drag & drop en cocina |
+| H8 | Diseño minimalista | KDS solo con lo esencial, jerarquía visual clara por sección |
+| H9 | Recuperación de errores | Mensajes de toast con causa exacta vía `OperationResult` |
+| H10 | Ayuda y documentación | Estados vacíos con guía de acción, tooltips en admin |
+
+**Leyes de diseño:**
+- **Ley de Fitts** — áreas táctiles ≥ 44 px, botones primarios en zona de pulgar
+- **Ley de Miller** — categorías del menú agrupadas en bloques de máximo 7 ítems
+- **Gestalt** — tarjetas con sombra para agrupar, separación visual de capas
+
+---
+
+## Sistema de diseño
+
+Paleta "Andino elevado" — cuatro tokens semánticos usados en toda la app:
+
+| Token | Color | Uso |
+|-------|-------|-----|
+| `--color-terracotta` | `#E05936` | Acción principal, estados activos |
+| `--color-carbon` | `#2D2A26` | Texto, fondos de admin/cocina |
+| `--color-bone` | `#F9F6F0` | Fondo base, superficies claras |
+| `--color-amber` | `#D4A853` | Delivery, advertencias, estados pendientes |
+
+Tipografía: **Fraunces** (display/títulos) + **Inter** (body) — ambas self-hosted.
+
+---
+
+## Stack
+
+```
+React 19 + TypeScript
+Vite 8                    — build y dev server
+Tailwind CSS 4            — estilos vía @tailwindcss/vite
+Zustand 5 + Immer         — estado global con persistencia en localStorage
+React Router 7            — ruteo por rol con ProtectedRoute
+Framer Motion             — microinteracciones y transiciones
+Lucide React              — iconografía consistente
+@hello-pangea/dnd         — drag & drop en KDS
+vite-plugin-pwa           — manifiesto y service worker
+```
+
+Backend objetivo (roadmap): **Supabase** (Postgres + Auth + Realtime + Storage). Hoy el estado es mock en memoria.
+
+---
+
+## Instalación
+
+```bash
+git clone https://github.com/YoelCanaza/restaurant-booking-pwa.git
+cd restaurant-booking-pwa
+npm install
+npm run dev        # http://localhost:5173
+```
+
+```bash
+npm run build      # producción
+npm run preview    # previsualizar build
+npm run lint       # eslint
 ```
 
 ---
 
-## 👤 Autor
+## Estructura
 
-**Yoel Canaza** - *Estudiante de Ingeniería de Sistemas - UNAP*
+```
+src/
+├── components/
+│   ├── ui/          # Primitivos: Button, Card, Chip, Modal, Input, StatusPill…
+│   ├── cliente/     # OrderTracker, StepIndicator
+│   └── delivery/    # CartDrawer, OrderCard, SwipeToConfirm
+├── pages/
+│   ├── cliente/     # LandingPage, DeliveryMenu, ReservationFlow, MyOrdersPage…
+│   ├── mesero/      # WaiterDashboard
+│   ├── cocina/      # KitchenKDS
+│   ├── caja/        # POSView
+│   ├── admin/       # AdminDashboard + 5 subpáginas de gestión
+│   └── delivery/    # DeliveryView
+├── store/
+│   ├── useAppStore.ts   # Dominio: platos, mesas, reservas, pedidos, carrito
+│   ├── useAuthStore.ts  # Sesión y usuarios
+│   └── useToastStore.ts # Notificaciones globales
+├── types/index.ts       # Tipos canónicos del dominio
+└── lib/
+    ├── estados.ts        # Colores y etiquetas de estado (fuente única)
+    └── supabase.ts       # Cliente futuro (roadmap)
+```
 
 ---
-© 2026 Rincón Andino - Innovación Gastronómica desde Puno.
+
+## Contexto académico
+
+Proyecto desarrollado para el curso **Interacción Humano-Computador** — Ingeniería de Sistemas, Universidad Nacional del Altiplano (UNAP), Puno, Perú. Ciclo 2026-I.
+
+**Autor:** Yoel Nhelio Canaza Chagua  
+**Docente:** Ing. Donia Alizandra Ruelas Acero
