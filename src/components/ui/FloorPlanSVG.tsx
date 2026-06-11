@@ -13,7 +13,7 @@ import type { EstadoMesa } from '../../types'
 type Shape = 'round' | 'rect'
 interface TableGeo { cx: number; cy: number; shape: Shape; w?: number; h?: number; r?: number }
 
-export const LAYOUT: Record<string, TableGeo> = {
+const LAYOUT: Record<string, TableGeo> = {
   // Planta baja
   mesa_01: { cx: 105, cy: 152, shape: 'round', r: 17 },
   mesa_02: { cx: 275, cy: 152, shape: 'round', r: 17 },

@@ -317,16 +317,24 @@ Login como mesero
     → Mesero lleva el plato → Marca ítem como "servido"
 ```
 
-#### D. Cerrar Mesa y Solicitar Cuenta
+#### D. Pre-cuenta y Envío a Caja
 
 ```
 [Mesero] → Seleccionar mesa en estado "comiendo"
-    → "Pedir Cuenta"
-    → El estado de la mesa cambia a "pagando"
-    → La comanda aparece inmediatamente en la cola del Cajero
+    → "Ver pre-cuenta y enviar a caja"
+        → PreCuentaModal: ítems, subtotal, servicio 10% (toggle), total, IGV incluido
+        → (Opcional) "Imprimir pre-cuenta" — ticket informativo, no fiscal
+        → El mesero la muestra al cliente para que valide su consumo
+    → "Enviar a caja" → La mesa cambia a "pagando"
+    → La cuenta aparece inmediatamente en la cola del Cajero
+    → El cliente paga en el mostrador de caja
 ```
 
-**Nota de Seguridad**: El mesero *nunca* cobra ni cierra definitivamente la mesa. Su rol termina al solicitar la cuenta. Esto previene fraudes y centraliza el control financiero en la caja.
+**Reglas:**
+- No se puede pedir la cuenta si la mesa tiene platos en `nuevo` o `preparando` (se valida con aviso).
+- Si la mesa está en `comiendo` o `esperando`, el mesero puede **"Agregar platos"** (comanda adicional → cocina; se suma a la cola de cobro de la mesa). Es también la vía para resolver **reclamos** (reposición de un plato).
+
+**Nota de Seguridad**: El mesero *nunca* cobra ni cierra definitivamente la mesa. Su rol termina al enviar la cuenta a caja. Esto previene fraudes y centraliza el control financiero en la caja.
 
 ---
 
@@ -367,11 +375,9 @@ Login como cajero
         → Emisión de ticket / comprobante electrónico
 ```
 
-> ⚠️ **Punto de decisión pendiente (cola de cobro).** Hoy el selector `getPedidosPendientesCobro()` arma la cola con: (a) pedidos de **salón** en estado `servido` o `listo`, y (b) pedidos de **delivery** `entregado` pagados en efectivo (reconciliación). En cambio, `solicitarCuenta` cambia la **mesa** a `pagando` pero **no cambia el estado del pedido**. Resultado: un pedido aparece en la cola del cajero apenas está `servido`, aún sin que el mesero haya pedido la cuenta. **Hay que decidir el criterio único:**
-> - **Opción A (recomendada):** la cola se basa en `mesa.estado === 'pagando'` → el cajero solo ve cuentas que el mesero solicitó explícitamente.
-> - **Opción B:** mantener `servido`/`listo` y eliminar el estado `pagando` como gatillo.
+> ✅ **Decisión tomada e implementada (Opción A).** La cola de cobro (`getPedidosPendientesCobro()`) se basa en `mesa.estado === 'pagando'`: el cajero **solo** ve cuentas que el mesero envió explícitamente desde la pre-cuenta, más los delivery `entregado` en efectivo (reconciliación). El selector busca por `mesaId` (no por `mesa.pedidoId`) para incluir **comandas adicionales** de la misma mesa; `procesarPago` libera la mesa únicamente cuando no quedan comandas activas por cobrar.
 >
-> Mientras no se decida, el comportamiento documentado en el flujo de arriba (cajero ve mesas en `pagando`) **no coincide** con el código.
+> **Impuestos y servicio (mock de comprobante):** los precios de la carta **ya incluyen IGV 18%** (se muestra back-calculado: `IGV = total × 18/118`). El **servicio del 10%** es opcional (toggle del cajero y del mesero en la pre-cuenta) y se suma sobre el subtotal. El comprobante impreso (boleta demo) muestra subtotal, servicio, total, método, recibido/vuelto e IGV incluido.
 
 ---
 
@@ -618,68 +624,69 @@ La app usa **tres layouts** según el rol (ya implementados en `src/components/l
 
 ```
 PÚBLICO
-  /                       → RoleSelectorPage (si no hay sesión) / redirige al dashboard del rol
+  /                       → LandingPage (vitrina: hero + carta + sección PWA) / logueado redirige a su panel
+  /login                  → LoginPage (Google demo para clientes · teléfono+contraseña para personal)
+  /registro               → RegisterPage
+  /cambiar-password       → ChangePasswordPage (primer ingreso del personal)
+  /demo                   → RoleSelectorPage (acceso de demostración por rol)
 
 CLIENTE  (MobileLayout)
   /cliente                → ClientHome (inicio: menú destacado + accesos)
   /cliente/menu           → DeliveryMenu (catálogo para pedido delivery)
-  /cliente/reserva        → ReservationFlow (asistente de reserva en pasos)
+  /cliente/reserva        → ReservationFlow (asistente de reserva en pasos; accesible como invitado)
   /cliente/reservas       → MyReservationsPage (historial de reservas)
   /cliente/pedidos        → MyOrdersPage (historial + OrderTracker en vivo)
+  /cliente/perfil         → ClientProfilePage (datos + puntos calculados)
 
 ADMIN  (DesktopLayout)
   /admin                  → AdminDashboard (KPIs)
+  /admin/reservas         → ReservationsAdminPage (confirmar/rechazar/no-show)
+  /admin/pedidos          → OrdersAdminPage (asignar repartidor, cancelar)
   /admin/mesas            → FloorPlanPage (plano de mesas)
   /admin/menu             → MenuManagerPage (gestión de menú)
-  [roadmap] /admin/reservas, /admin/pedidos, /admin/personal, /admin/clientes, /admin/reportes
+  /admin/personal         → StaffAdminPage (alta/baja/rol/contraseña de empleados)
+  /admin/clientes         → ClientsAdminPage (segmentos y actividad)
+  /admin/reportes         → ReportsAdminPage (ventas, ranking, canales)
 
 MESERO  (MobileLayout)
-  /mesero                 → WaiterDashboard (plano + toma de comanda)
+  /mesero                 → WaiterDashboard (plano + comanda + pre-cuenta)
 
 COCINA  (KdsLayout)
-  /cocina                 → KitchenKDS (cola de tickets)
+  /cocina                 → KitchenKDS (cola de tickets + plato agotado)
 
 CAJA  (DesktopLayout)
-  /caja                   → POSView (cola de cobro + cobro)
+  /caja                   → POSView (cola de cobro + IGV/servicio + comprobante)
 
 DELIVERY  (MobileLayout)
-  /delivery               → DeliveryView (mis pedidos asignados)
+  /delivery               → DeliveryView (mis pedidos asignados, por sesión)
 ```
-
-> **Estado actual vs. roadmap:** Las pantallas marcadas `[roadmap]` están descritas en los flujos del Admin (Sección 4.2) pero **aún no tienen ruta/página creada**. El Admin hoy solo tiene Dashboard, Mesas y Menú. Las acciones del store para reservas/pedidos/personal **ya existen**; falta construir las pantallas que las invoquen.
 
 ---
 
 ## 12. Catálogo de Pantallas → Botones → Acciones
 
-> ⚠️ **Esto es la ESPECIFICACIÓN OBJETIVO, no el estado construido.** Define qué controles *debe* tener cada pantalla, qué *debe* hacer cada uno y a qué acción del store (`useAppStore` / `useAuthStore`) *debería* llamar. Es la guía para construir el frontend, no un reporte de lo ya hecho.
->
-> **Estado real del frontend (mayo 2026): prototipo visual, mayormente NO cableado.** Las pantallas existen como maqueta con datos mock y varios botones decorativos. Ver §12.0 para el estado por pantalla. `OperationResult` = `{ ok, error? }`: cuando `ok === false` se muestra `error` vía `useToastStore`.
+> Define qué controles tiene cada pantalla, qué hace cada uno y a qué acción del store (`useAppStore` / `useAuthStore`) llama. `OperationResult` = `{ ok, error? }`: cuando `ok === false` se muestra `error` vía `useToastStore`.
 
-### 12.0 Estado de implementación (auditado en código, 29-may-2026)
+### 12.0 Estado de implementación (actualizado 11-jun-2026)
 
-App arranca sin errores (Vite, HTTP 200). Auditoría hecha trazando cada `onClick`/handler en el código (no por clic visual — no había navegador disponible). Leyenda: ✅ cableado a lógica real · ⚠️ funciona pero con mock/limitación · ❌ falso/roto.
+**El frontend está completo y cableado al store en las 6 vistas de rol.** `tsc -b`, `npm run build` y `eslint .` pasan en verde. Leyenda: ✅ cableado a lógica real · ⚠️ limitación propia del mock (se resuelve con backend).
 
-| Pantalla | Estado | Detalle verificado |
+| Pantalla | Estado | Detalle |
 |----------|:---:|------|
-| RoleSelectorPage | ✅ | `switchRole(role)` + navega. Funcional como **login de dev**. ❌ login/registro reales (con contraseña) no existen |
-| ClientHome | ✅ | 4 botones navegan bien. ⚠️ "240 pts" hardcodeado. (QR eliminado por §4.3) |
-| DeliveryMenu | ✅ | `MenuGrid→addToCart` y `CartDrawer→addPedidoDelivery` reales; pantalla de éxito inline. ⚠️ "Contactar Repartidor" = `alert()`; ETA "35-45 min" fijo |
-| CartDrawer | ✅ | `addPedidoDelivery` + toast de error. ⚠️ método de pago limitado a tarjeta/yape (spec dice efectivo/yape/plin) |
-| ReservationFlow | ✅ | Asistente 4 pasos → `addReserva` con validación → SuccessScreen |
-| MyReservationsPage | ✅ | Cancelar → `cancelarReservaCliente` (regla 2h) + toast |
-| MyOrdersPage | ⚠️ | Muestra `OrderTracker`. **Filtra por `clienteNombre === user.name`** (mock, no por `clienteId`). Solo lectura |
-| WaiterDashboard | ✅ | Comanda → `crearComandaSalon`; servido → `updatePedidoEstado`; cuenta → `solicitarCuenta`. Usa feedback local, no `useToastStore` |
-| KitchenKDS | ✅ | Kanban drag&drop → `updatePedidoEstado` (nuevo/preparando/listo). ⚠️ modal de receta = mock explícito. ❌ falta botón "plato agotado/incidencia" (§4.4) |
-| POSView | ✅ | Cola `getPedidosPendientesCobro` + `procesarPago` + cálculo de vuelto. ⚠️ "Imprimir Comprobante" solo cierra el modal |
-| DeliveryView | ⚠️ | ❌ usa `CURRENT_DELIVERY_ID = 'usr_delivery_01'` hardcodeado, **ignora la sesión**. "Caja del turno" = suma mock. OrderCard funciona pero "Abrir Maps" = toast |
-| AdminDashboard | ⚠️ | KPIs reales ✅; confirmar/rechazar reserva ✅. ❌ "ver pedidos" → `/admin/pedidos` (ruta inexistente, rebota a `/admin`). ❌ "Kardex/Inventario" y "Logs de Auditoría" = `alert()` |
-| FloorPlanPage | ✅ | `updateMesaEstado` + navegación por fecha. ⚠️ solo botones libre/ocupada (no los 7 estados); falta "asignar reserva" (§C) |
-| MenuManagerPage | ✅ | toggle disponibilidad, editar precio y agregar plato → store. ⚠️ falta "eliminar plato" (§D) |
+| LandingPage | ✅ | Vitrina pública (hero + beneficios + carta + sección PWA con mockup + footer). Checkout de invitado vía CartDrawer |
+| LoginPage / RegisterPage | ⚠️ | Personal: teléfono+contraseña real (mock). Clientes: "Continuar con Google" = demo hasta backend |
+| RoleSelectorPage (/demo) | ✅ | `switchRole(role)` — acceso de demostración por rol |
+| ClientHome / ClientProfilePage | ✅ | Navegación + puntos calculados del historial real del cliente |
+| DeliveryMenu / CartDrawer | ✅ | `addToCart` → `addPedidoDelivery` (efectivo/Yape/Plin, contra entrega) |
+| ReservationFlow | ✅ | 4 pasos → `addReserva`. Tope de personas = mesa más grande; horas sin disponibilidad deshabilitadas; aviso large-party |
+| MyReservationsPage / MyOrdersPage | ✅ | Cancelación con regla 2h; tracker en vivo; filtra por `clienteId` |
+| WaiterDashboard | ✅ | Comanda → cocina; comanda adicional; pre-cuenta (servicio 10% + IGV) → envío a caja. Leyenda completa de estados |
+| KitchenKDS | ✅ | Kanban drag&drop `nuevo/preparando/listo` + botón "plato agotado" (`togglePlatoDisponible`) |
+| POSView | ✅ | Cola por `mesa.estado === 'pagando'` (Opción A) + comandas adicionales + IGV/servicio + comprobante imprimible |
+| DeliveryView | ✅ | Pedidos por sesión (`user.id`), SwipeToConfirm, Maps |
+| AdminDashboard + suite (7) | ✅ | KPIs + Reservas, Pedidos, Mesas, Menú (CRUD completo), Personal, Clientes, Reportes |
 
-**Transversal:** todos los datos son **mock en memoria** (no hay backend, no hay persistencia entre dispositivos). La autenticación es solo de desarrollo. Los IDs de mesero/cocina/cajero/cliente usan `user?.id ?? 'usr_..._01'` (toman la sesión si existe); **DeliveryView es la excepción** (ID fijo).
-
-> El catálogo de abajo (§12.1+) es el **destino**; esta tabla §12.0 es el **estado real**.
+**Transversal (límite del mock):** todos los datos viven en `localStorage` de un solo navegador — **no hay sincronización entre dispositivos** ni auth real. Eso es exactamente lo que resuelve la fase backend (Supabase: Postgres + Auth + Realtime). Ver ARCHITECTURE.md §3–§4.
 
 ### 12.1 RoleSelectorPage (público)
 
@@ -732,8 +739,10 @@ App arranca sin errores (Vite, HTTP 200). Auditoría hecha trazando cada `onClic
 | Mesa en el plano | selección local | ver pedidos activos de la mesa (`getPedidosByMesa`) |
 | "Tomar pedido" → menú | `addToCart` / form local | solo platos disponibles; notas por ítem |
 | "Enviar comanda" | `crearComandaSalon(mesaId, items, meseroId, clienteNombre?)` | Mesa → `pidiendo`; valida no haya comanda activa + disponibilidad |
+| "Sentar comensales" | `sentarComensales(mesaId)` | Mesa `libre` → `ocupada` (llegan clientes que aún no piden) |
 | "Marcar servido" (por ítem/pedido) | `updatePedidoEstado(pedidoId, 'servido', actorId, 'mesero')` | Mesa → `comiendo` |
-| "Pedir cuenta" | `solicitarCuenta(pedidoId, meseroId)` | Mesa → `pagando`. El mesero **nunca cobra** |
+| "Agregar platos" | `agregarComandaAdicional(mesaId, items, meseroId)` | Solo en `comiendo`/`esperando`; comanda extra → cocina (también para reclamos) |
+| "Ver pre-cuenta y enviar a caja" | `solicitarCuenta(pedidoId, meseroId)` | PreCuentaModal (servicio 10% toggle + IGV) → confirma → mesa → `pagando`. El mesero **nunca cobra** |
 
 ### 12.4 Cocina — KitchenKDS
 
@@ -808,5 +817,5 @@ App arranca sin errores (Vite, HTTP 200). Auditoría hecha trazando cada `onClic
 
 ---
 
-*Última actualización: 29 de mayo de 2026 — Yoel Canaza, UNAP Ingeniería de Sistemas.*
+*Última actualización: 11 de junio de 2026 — Yoel Canaza, UNAP Ingeniería de Sistemas.*
 *Revisado contra el código (`src/types`, `src/store`, `src/routes`): se alinearon literales de rol (`caja`), máquinas de estado de mesa/reserva, tabla de eventos y se añadieron el mapa de navegación (§11) y el catálogo de botones (§12).*

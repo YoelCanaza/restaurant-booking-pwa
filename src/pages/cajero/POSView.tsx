@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Store, Receipt, Banknote, CreditCard, CheckCircle, QrCode, X, Clock, Plus } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
@@ -177,8 +177,15 @@ export default function POSView() {
       return mesa?.pedidoId != null && pedido.id !== mesa.pedidoId
     })()
 
+  // Reloj en estado (no Date.now() en render) — refresca la espera cada minuto
+  const [ahora, setAhora] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setAhora(Date.now()), 60000)
+    return () => clearInterval(t)
+  }, [])
+
   const getMinutosEspera = (pedido: Pedido) =>
-    Math.floor((Date.now() - new Date(pedido.createdAt).getTime()) / 60000)
+    Math.floor((ahora - new Date(pedido.createdAt).getTime()) / 60000)
 
   return (
     <div style={{ display: 'flex', gap: '1.5rem', height: '100%' }}>

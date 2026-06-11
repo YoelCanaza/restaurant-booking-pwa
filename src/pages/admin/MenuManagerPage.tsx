@@ -7,7 +7,7 @@ import { useCurrentUser } from '../../hooks'
 import Switch from '../../components/ui/Switch'
 import Chip from '../../components/ui/Chip'
 import Button from '../../components/ui/Button'
-import type { Plato } from '../../types'
+import type { Plato, CategoriaPlato } from '../../types'
 
 const CATEGORIAS = ['todos', 'entradas', 'sopas', 'segundos', 'bebidas']
 
@@ -28,7 +28,7 @@ export default function MenuManagerPage() {
   // Estado del formulario nuevo plato
   const [nuevoNombre, setNuevoNombre] = useState('')
   const [nuevoPrecio, setNuevoPrecio] = useState('')
-  const [nuevoCategoria, setNuevoCategoria] = useState('segundos')
+  const [nuevoCategoria, setNuevoCategoria] = useState<CategoriaPlato>('segundos')
   const [nuevaDescripcion, setNuevaDescripcion] = useState('')
   const [nuevaImagen, setNuevaImagen] = useState('') // data URL o URL de la imagen referencial
   const [editId, setEditId] = useState<string | null>(null) // null = alta; id = edición
@@ -103,7 +103,7 @@ export default function MenuManagerPage() {
         nombre: nuevoNombre,
         descripcion,
         precio: val,
-        categoria: nuevoCategoria as any,
+        categoria: nuevoCategoria,
         imageUrl: nuevaImagen || `https://placehold.co/400x300/E05936/FFFFFF?text=${encodeURIComponent(nuevoNombre)}`,
       })
       addToast(`${nuevoNombre} actualizado`, 'success')
@@ -113,7 +113,7 @@ export default function MenuManagerPage() {
         nombre: nuevoNombre,
         descripcion,
         precio: val,
-        categoria: nuevoCategoria as any,
+        categoria: nuevoCategoria,
         imageUrl: nuevaImagen || `https://placehold.co/400x300/E05936/FFFFFF?text=${encodeURIComponent(nuevoNombre)}`,
         disponible: true,
         tiempoPreparacion: 15,
@@ -338,7 +338,7 @@ export default function MenuManagerPage() {
                     </label>
                     <select
                       value={nuevoCategoria}
-                      onChange={(e) => setNuevoCategoria(e.target.value)}
+                      onChange={(e) => setNuevoCategoria(e.target.value as CategoriaPlato)}
                       className="w-full h-12 bg-white border border-border/60 rounded-xl px-4 text-carbon focus:border-terracotta focus:outline-none appearance-none"
                     >
                       {CATEGORIAS.filter(c => c !== 'todos').map(c => (

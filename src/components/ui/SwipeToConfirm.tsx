@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
-import { motion, useAnimation } from 'framer-motion'
+import { motion, useAnimation, type PanInfo } from 'framer-motion'
 import { Check } from 'lucide-react'
 
 interface SwipeToConfirmProps {
@@ -18,7 +18,7 @@ export default function SwipeToConfirm({ onConfirm, label = 'Desliza para confir
     }
   }, [])
 
-  const handleDragEnd = (_: any, info: any) => {
+  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const threshold = containerWidth * 0.6 // 60% is usually enough for UX
     if (info.offset.x > threshold) {
       // Completed swipe

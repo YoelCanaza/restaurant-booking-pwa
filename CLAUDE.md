@@ -60,12 +60,14 @@ Hoy los datos son **mock en memoria** (constantes `MOCK_*` en los stores). No ha
 - Responder al usuario en español.
 
 ## Decisiones tomadas
-- **Cola del cajero (Opción A):** `getPedidosPendientesCobro()` es la única fuente de verdad. Salón solo cuando `mesa.estado === 'pagando'` (mesero pulsó "Pedir cuenta") + delivery efectivo entregado para reconciliación. POSView consume el selector directamente.
+- **Cola del cajero (Opción A):** `getPedidosPendientesCobro()` es la única fuente de verdad. Salón solo cuando `mesa.estado === 'pagando'` (mesero pulsó "Pedir cuenta") + delivery efectivo entregado para reconciliación. POSView consume el selector directamente. Busca por `mesaId` (no por `mesa.pedidoId`) para incluir **comandas adicionales**; `procesarPago` libera la mesa solo cuando no quedan comandas activas.
+- **Flujo de cobro de salón:** el mesero ve la **pre-cuenta** (PreCuentaModal: subtotal + servicio 10% opcional + IGV 18% incluido back-calculado `total × 18/118`) y recién entonces envía a caja. El cajero tiene el mismo desglose y emite el comprobante (boleta demo). Los precios **ya incluyen IGV** — nunca sumarlo encima.
+- **Reservas (patrón large-party):** el selector de personas se limita a la capacidad de la mesa más grande (dinámico); grupos mayores → aviso "llámanos". Las horas sin mesa libre con capacidad suficiente se muestran deshabilitadas (Chip `disabled`). Unir mesas = feature interna de admin (roadmap), nunca visible al cliente.
 
 ## Puntos abiertos / roadmap (ver BUSINESS_LOGIC para detalle)
-- **El repo compila y construye** (`tsc -b` y `npm run build` en verde). Quedan ~24 errores de **lint** pre-existentes (tipos `any` y `Date.now()` en render / regla `react-hooks/purity`) que no bloquean el build — limpiar antes de activar CI con eslint.
-- Pantallas de Admin faltantes: Reservas, Pedidos, Personal, Clientes, Reportes (las acciones del store ya existen).
-- Login/registro real, notificaciones push PWA, y migración de mock a backend (Supabase) pendientes.
+- **El repo compila, construye y pasa lint en cero** (`tsc -b`, `npm run build`, `eslint .` en verde). `dev-dist/` está ignorado en eslint.config.js.
+- **Siguiente fase: backend Supabase + deploy en Vercel** (mostrar la app funcionando completa en internet). Ver plan en ARCHITECTURE.md §3–§4: migrar `MOCK_*` a Postgres, Auth real (Google para clientes, teléfono+contraseña para personal, seed admin), Realtime para mesero↔cocina↔caja, TanStack Query para estado de servidor.
+- Post-backend: notificaciones push PWA, OTP para delivery, canje de puntos.
 
 ## Estado del repo
-Rama `main`. Hay mucho trabajo sin commitear (nuevas páginas de mesero/cocina/cajero, layouts, db.json). Commitear/pushear solo cuando el usuario lo pida.
+Rama `main`. Las 6 vistas de rol están completas y cableadas al store (incluida la suite de admin: reservas, pedidos, mesas, menú, personal, clientes, reportes). Todo mock/localStorage — sin backend aún. Commitear/pushear solo cuando el usuario lo pida.

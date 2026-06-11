@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { Info } from 'lucide-react'
+import { Info, Phone, Users } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useToastStore } from '../../store/useToastStore'
@@ -60,6 +60,29 @@ export default function ReservationFlow() {
 
   const state = useAppStore()
   const disponibilidad = useMemo(() => getDisponibilidadMesas(state, fecha, hora), [state, fecha, hora])
+
+  // Capacidad máxima reservable online = la mesa más grande del restaurante.
+  // Grupos mayores se atienden por teléfono (patrón "large party" de OpenTable/Resy).
+  const maxCapacidad = useMemo(
+    () => Math.max(...state.mesas.map((m) => m.capacidad)),
+    [state.mesas]
+  )
+
+  // Por cada horario: ¿hay al menos una mesa libre con capacidad suficiente?
+  // Así el cliente solo elige horas donde SÍ podrá sentarse (no descubre el problema en el paso 2).
+  const horasDisponibles = useMemo(() => {
+    const result: Record<string, boolean> = {}
+    for (const h of HOURS) {
+      const disp = getDisponibilidadMesas(state, fecha, h)
+      result[h] = state.mesas.some(
+        (m) => m.capacidad >= personas && disp[m.id] === 'libre'
+      )
+    }
+    return result
+  }, [state, fecha, personas])
+
+  const horaSeleccionadaDisponible = horasDisponibles[hora] ?? false
+  const ningunaHoraDisponible = HOURS.every((h) => !horasDisponibles[h])
 
   const handleConfirm = () => {
     // Identidad: sesión existente o registro invisible del invitado (con sus datos)
@@ -141,9 +164,26 @@ export default function ReservationFlow() {
                   value={personas}
                   onChange={setPersonas}
                   min={1}
-                  max={10}
+                  max={maxCapacidad}
                   unit="persona"
                 />
+                {/* Grupos grandes: canal directo (patrón estándar de apps de reserva) */}
+                {personas === maxCapacidad && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-start gap-2.5 mt-5 mx-auto max-w-sm rounded-xl bg-amber/10 border border-amber/30 px-4 py-3"
+                  >
+                    <Users size={16} className="text-amber-700 shrink-0 mt-0.5" />
+                    <p className="text-xs text-carbon/70 leading-relaxed m-0">
+                      ¿Grupo de más de {maxCapacidad} personas? Llámanos al{' '}
+                      <a href="tel:+51951234567" className="font-bold text-terracotta inline-flex items-center gap-1">
+                        <Phone size={11} /> 951 234 567
+                      </a>{' '}
+                      y te organizamos mesas juntas.
+                    </p>
+                  </motion.div>
+                )}
               </section>
 
               <section>
@@ -164,21 +204,41 @@ export default function ReservationFlow() {
                 <h3 className="font-display text-lg font-bold text-carbon mb-4">¿A qué hora?</h3>
                 <div className="flex flex-wrap gap-3">
                   {HOURS.map(h => (
-                    <Chip 
-                      key={h} 
-                      label={h} 
-                      selected={hora === h} 
-                      onClick={() => setHora(h)} 
+                    <Chip
+                      key={h}
+                      label={h}
+                      selected={hora === h}
+                      disabled={!horasDisponibles[h]}
+                      onClick={() => setHora(h)}
                     />
                   ))}
                 </div>
+
+                {/* Avisos de disponibilidad */}
+                {ningunaHoraDisponible ? (
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-xs text-red-600 font-medium mt-3 m-0"
+                  >
+                    No hay mesas para {personas} personas ese día. Prueba con otra fecha o un grupo más pequeño.
+                  </motion.p>
+                ) : !horaSeleccionadaDisponible ? (
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-xs text-amber-700 font-medium mt-3 m-0"
+                  >
+                    A las {hora} no quedan mesas para {personas} {personas === 1 ? 'persona' : 'personas'}. Elige un horario disponible.
+                  </motion.p>
+                ) : null}
               </section>
 
               <div className="flex gap-3 mt-4">
                 <Button variant="ghost" onClick={() => navigate('/cliente')} className="w-1/3 text-carbon/60">
                   Cancelar
                 </Button>
-                <Button fullWidth size="lg" onClick={handleNext} className="w-2/3">
+                <Button fullWidth size="lg" onClick={handleNext} disabled={!horaSeleccionadaDisponible} className="w-2/3">
                   Continuar
                 </Button>
               </div>

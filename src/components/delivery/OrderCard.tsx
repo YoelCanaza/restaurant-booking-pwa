@@ -7,15 +7,16 @@ import Chip from '../ui/Chip'
 import SwipeToConfirm from '../ui/SwipeToConfirm'
 import Button from '../ui/Button'
 import { useState } from 'react'
+import type { Pedido, EstadoPedido, PedidoItem } from '../../types'
 
 // Helper to get next state in the delivery flow
-const nextEstado = (estado: string) => {
-  const order = ['nuevo', 'preparando', 'en_camino', 'entregado']
+const nextEstado = (estado: EstadoPedido): EstadoPedido => {
+  const order: EstadoPedido[] = ['nuevo', 'preparando', 'en_camino', 'entregado']
   const idx = order.indexOf(estado)
   return idx >= 0 && idx < order.length - 1 ? order[idx + 1] : estado
 }
 
-export default function OrderCard({ pedido }: { pedido: any }) {
+export default function OrderCard({ pedido }: { pedido: Pedido }) {
   const updateEstado = useAppStore((s) => s.updatePedidoEstado)
   const addToast = useToastStore((s) => s.addToast)
   const user = useCurrentUser()
@@ -23,7 +24,7 @@ export default function OrderCard({ pedido }: { pedido: any }) {
 
   const handleConfirm = () => {
     const newEstado = nextEstado(pedido.estado)
-    updateEstado(pedido.id, newEstado as any, user?.id ?? '', user?.role ?? 'delivery')
+    updateEstado(pedido.id, newEstado, user?.id ?? '', user?.role ?? 'delivery')
   }
 
   // Badge color & animation
@@ -65,7 +66,7 @@ export default function OrderCard({ pedido }: { pedido: any }) {
             className="mt-4"
           >
             <ul className="list-disc pl-5 space-y-1 mb-4">
-              {pedido.items.map((it: any, i: number) => (
+              {pedido.items.map((it: PedidoItem, i: number) => (
                 <li key={i} className="text-sm text-carbon/80">
                   {it.cantidad}× {it.nombre} – S/ {it.precio.toFixed(2)}
                 </li>

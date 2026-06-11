@@ -9,7 +9,7 @@ import Button from '../../components/ui/Button'
 import PageHeader from '../../components/ui/PageHeader'
 import EmptyState from '../../components/ui/EmptyState'
 import StatusPill from '../../components/ui/StatusPill'
-import OrderTracker from '../../components/cliente/OrderTracker'
+import OrderTracker, { type OrderTrackerState } from '../../components/cliente/OrderTracker'
 
 export default function MyOrdersPage() {
   const user = useCurrentUser()
@@ -70,7 +70,7 @@ export default function MyOrdersPage() {
               {/* Order Tracker for active orders */}
               {pedido.estado !== 'entregado' && (
                 <div className="mb-4 -mx-2">
-                  <OrderTracker estado={pedido.estado as any} />
+                  <OrderTracker estado={pedido.estado as OrderTrackerState} />
                 </div>
               )}
 

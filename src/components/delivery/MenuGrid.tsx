@@ -4,15 +4,6 @@ import { Plus, Clock, Star } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
 import type { CategoriaPlato, Plato } from '../../types'
 
-export const CATEGORIAS: { id: CategoriaPlato | 'todos'; label: string }[] = [
-  { id: 'todos', label: 'Todos' },
-  { id: 'entradas', label: 'Entradas' },
-  { id: 'sopas', label: 'Sopas' },
-  { id: 'segundos', label: 'Segundos' },
-  { id: 'postres', label: 'Postres' },
-  { id: 'bebidas', label: 'Bebidas' },
-]
-
 const ORDEN: CategoriaPlato[] = ['entradas', 'sopas', 'segundos', 'postres', 'bebidas']
 const LABEL: Record<CategoriaPlato, string> = {
   entradas: 'Entradas', sopas: 'Sopas', segundos: 'Segundos', postres: 'Postres', bebidas: 'Bebidas',
@@ -31,12 +22,18 @@ export default function MenuGrid({ categoriaActiva }: MenuGridProps) {
   const platos = useAppStore((s) => s.platos)
   const addToCart = useAppStore((s) => s.addToCart)
   const [loading, setLoading] = useState(false)
+  // Skeleton breve al cambiar de categoría (reset de estado en render, no en effect)
+  const [prevCategoria, setPrevCategoria] = useState(categoriaActiva)
+  if (prevCategoria !== categoriaActiva) {
+    setPrevCategoria(categoriaActiva)
+    setLoading(true)
+  }
 
   useEffect(() => {
-    setLoading(true)
+    if (!loading) return
     const t = setTimeout(() => setLoading(false), 500)
     return () => clearTimeout(t)
-  }, [categoriaActiva])
+  }, [loading])
 
   const cats = categoriaActiva === 'todos' ? ORDEN : [categoriaActiva]
   const grupos = cats
