@@ -13,6 +13,11 @@ dist-ssr
 dev-dist
 *.local
 
+# Credenciales — nunca al repo (en Vercel van como env vars del dashboard)
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
