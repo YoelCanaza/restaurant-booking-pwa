@@ -166,7 +166,7 @@ Toda vista que lee datos debe manejar **4 estados**: *cargando* (usar `SkeletonC
 
 ## 7. Salud del repo (hallazgos actuales)
 
-> **Estado:** `tsc -b` y `npm run build` ahora pasan en verde (incluida la generación del service worker PWA). Quedan errores de **lint** pre-existentes que no bloquean el build (ver abajo).
+> **Estado (11-jun-2026):** `tsc -b`, `npm run build` y `eslint .` pasan **en verde, lint en cero**. Listo para activar CI y arrancar la migración a Supabase (§6).
 
 **Corregido en esta iteración (el repo ya compila y construye):**
 - Tipo de `logActivity` (resolvía a `never` y rompía ~10 llamadas) → ahora `actorRole: UserRole`.
@@ -179,10 +179,12 @@ Toda vista que lee datos debe manejar **4 estados**: *cargando* (usar `SkeletonC
 - `WaiterDashboard.tsx`: eliminada comparación inválida de `pedido.estado` con `'comiendo'` (estado de mesa).
 - `KdsLayout.tsx`: import `motion` sin uso eliminado; params sin uso del store removidos.
 
-**Pendiente (lint, no bloquea build — ~24 issues):**
-- `@typescript-eslint/no-explicit-any`: varios `pedido: any` / casts `as any` → tipar con `Pedido`/`EstadoPedido`.
-- `react-hooks/purity`: `Date.now()` llamado en render (`POSView`, `WaiterDashboard`, `OrderCard`) para mostrar minutos transcurridos → mover a `useState`+`useEffect` con intervalo, o memorizar. Funciona en runtime pero viola la regla de pureza de React 19.
-- Activar CI (GitHub Actions) con `tsc` + `eslint` recién cuando estos estén saneados.
+**Saneado (11-jun-2026) — lint 21→0:**
+- `no-explicit-any` eliminado: `OrderCard` (`Pedido`/`EstadoPedido`), `SwipeToConfirm` (`PanInfo`), `MenuManagerPage` (`CategoriaPlato`), `MyOrdersPage` (`OrderTrackerState`).
+- `react-hooks/purity`: `POSView` usa reloj en `useState` + intervalo de 60 s; `MenuGrid` resetea su skeleton en render (patrón oficial), no en effect.
+- `react-refresh/only-export-components`: `CATEGORIAS` movido a `src/lib/categorias.ts`; `LAYOUT` de `FloorPlanSVG` ya no se exporta.
+- `dev-dist/` (artefacto del PWA en dev) ignorado en `eslint.config.js`.
+- **Siguiente paso:** activar CI (GitHub Actions) con `tsc` + `eslint` — ya no hay bloqueadores.
 
 ---
 
