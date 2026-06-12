@@ -154,13 +154,16 @@ Toda vista que lee datos debe manejar **4 estados**: *cargando* (usar `SkeletonC
 
 ## 6. Plan de migración mock → backend (sin reescribir la UI)
 
-1. **Modelar el esquema** en Postgres a partir de [src/types/index.ts](src/types/index.ts) (tablas `users`, `platos`, `mesas`, `reservas`, `pedidos`, `pedido_items`, `activity_logs`).
-2. **Crear el cliente** (`src/lib/supabase.ts`) y mover credenciales a variables de entorno.
-3. **Reemplazar las acciones de los stores** una por una: que `addPedidoDelivery`, `procesarPago`, etc. llamen al backend y mantengan el retorno `OperationResult`. Las firmas no cambian → los componentes siguen igual.
-4. **Migrar lecturas a TanStack Query** (§2.1) y conectar **suscripciones realtime** para cocina, tracker y mesas.
-5. **Auth real**: sustituir `switchRole` por login por teléfono/contraseña; `ProtectedRoute` valida la sesión real; añadir **RLS** en el servidor.
-6. **Activity log** persistente en tabla (sustituye al buffer en `localStorage`); el `Set` `EVENTOS_PERSISTENTES` decide qué se escribe.
-7. **CI** que bloquee merges si `tsc`/`eslint` fallan.
+> **Estado (11-jun-2026): pasos 1–3, 6 y 7 COMPLETADOS y en producción.** La app desplegada en Vercel corre contra Supabase con realtime multi-dispositivo.
+
+1. ✅ **Esquema en Postgres** — [supabase/schema.sql](supabase/schema.sql): 7 tablas desde `src/types`, RLS (políticas demo), realtime, seed. Idempotente (re-ejecutar = reset de la demo).
+2. ✅ **Cliente** — [src/lib/supabase.ts](src/lib/supabase.ts), credenciales por env vars (`.env` local / dashboard de Vercel).
+3. ✅ **Acciones de los stores cableadas** — patrón *write-through*: mutación local síncrona (firma `OperationResult` intacta, cero cambios en componentes) + push a Supabase por la **cola serializada** de [src/lib/db.ts](src/lib/db.ts) (orden de FKs garantizado). Errores → toast + re-hidratación automática.
+   - **Lecturas**: hidratación completa al montar + **realtime** ([src/lib/sync.ts](src/lib/sync.ts), canal único sobre pedidos/items/mesas/reservas/platos/usuarios) que hace upsert al store. El store Zustand actúa como caché de cliente.
+4. ⏸️ **TanStack Query** — pospuesto: el patrón actual (store hidratado + realtime) cubre las necesidades de la app; TanStack aportaría caching fino/refetch que hoy no hacen falta. Reevaluar si crecen las vistas de datos.
+5. 🔜 **Auth real** (siguiente fase): Supabase Auth — Google para clientes, teléfono+contraseña para personal (hash real; hoy texto plano en la tabla `usuarios`, solo demo), endurecer RLS por rol con `auth.uid()`.
+6. ✅ **Activity log** en tabla `activity_logs` (los eventos de `EVENTOS_PERSISTENTES` se escriben a DB; el resto queda en memoria).
+7. ✅ **CI** — GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)): tsc + eslint + build en cada push/PR a main.
 
 ---
 

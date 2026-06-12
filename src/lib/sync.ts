@@ -109,6 +109,11 @@ export function suscribirRealtime() {
       const plato = rowToPlato(payload.new as PlatoRow)
       useAppStore.setState((s) => ({ platos: upsertById(s.platos, plato) }))
     })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'usuarios' }, (payload) => {
+      if (payload.eventType === 'DELETE') return // el dominio no borra usuarios
+      const usuario = rowToUser(payload.new as UsuarioRow)
+      useAuthStore.setState((s) => ({ users: upsertById(s.users, usuario) }))
+    })
     .subscribe()
 
   return () => {

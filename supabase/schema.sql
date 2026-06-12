@@ -193,7 +193,7 @@ create policy demo_select on activity_logs for select using (true);
 create policy demo_insert on activity_logs for insert with check (true);
 
 -- ── Realtime: publicar cambios de las tablas vivas ────────────
-alter publication supabase_realtime add table pedidos, pedido_items, mesas, reservas, platos;
+alter publication supabase_realtime add table pedidos, pedido_items, mesas, reservas, platos, usuarios;
 
 -- ═══════════════════════════════════════════════════════════════
 -- SEED — datos del mock (src/store/useAppStore.ts + useAuthStore.ts)

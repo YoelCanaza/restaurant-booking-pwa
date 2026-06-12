@@ -64,10 +64,17 @@ Hoy los datos son **mock en memoria** (constantes `MOCK_*` en los stores). No ha
 - **Flujo de cobro de salón:** el mesero ve la **pre-cuenta** (PreCuentaModal: subtotal + servicio 10% opcional + IGV 18% incluido back-calculado `total × 18/118`) y recién entonces envía a caja. El cajero tiene el mismo desglose y emite el comprobante (boleta demo). Los precios **ya incluyen IGV** — nunca sumarlo encima.
 - **Reservas (patrón large-party):** el selector de personas se limita a la capacidad de la mesa más grande (dinámico); grupos mayores → aviso "llámanos". Las horas sin mesa libre con capacidad suficiente se muestran deshabilitadas (Chip `disabled`). Unir mesas = feature interna de admin (roadmap), nunca visible al cliente.
 
-## Puntos abiertos / roadmap (ver BUSINESS_LOGIC para detalle)
-- **El repo compila, construye y pasa lint en cero** (`tsc -b`, `npm run build`, `eslint .` en verde). `dev-dist/` está ignorado en eslint.config.js.
-- **Siguiente fase: backend Supabase + deploy en Vercel** (mostrar la app funcionando completa en internet). Ver plan en ARCHITECTURE.md §3–§4: migrar `MOCK_*` a Postgres, Auth real (Google para clientes, teléfono+contraseña para personal, seed admin), Realtime para mesero↔cocina↔caja, TanStack Query para estado de servidor.
-- Post-backend: notificaciones push PWA, OTP para delivery, canje de puntos.
+## Backend (Supabase) — EN PRODUCCIÓN
+- **La app corre contra Postgres en Supabase** y está desplegada en Vercel (https://restaurant-booking-pwa.vercel.app). Esquema en [supabase/schema.sql](supabase/schema.sql) (idempotente: re-ejecutar = reset de la demo). Credenciales en `.env` (gitignoreado) y en las env vars de Vercel.
+- **Patrón write-through**: las acciones de los stores mantienen su firma síncrona (`OperationResult`); mutan local primero y empujan a Supabase vía la **cola serializada** de [src/lib/db.ts](src/lib/db.ts) (garantiza orden de FKs: usuario→reserva, pedido→items). Errores → evento `rincon:syncerror` → toast + re-hidratación ([src/lib/sync.ts](src/lib/sync.ts)).
+- **Hidratación al montar** (App.tsx) + **realtime** (canal único: pedidos, pedido_items, mesas, reservas, platos, usuarios) → todas las pantallas son multi-dispositivo sin cambios.
+- **Adaptadores** snake_case↔camelCase en [src/lib/adapters.ts](src/lib/adapters.ts). `persist` del appStore solo guarda el carrito (v7).
+- **RLS fase demo**: lectura/escritura abiertas con anon key, sin DELETE (salvo platos). Se endurece en la fase Auth. La `service_role` key NUNCA se comparte ni se usa en el cliente.
+- CI en GitHub Actions: tsc + eslint + build en cada push a main.
+
+## Puntos abiertos / roadmap
+- **Fase Auth** (siguiente): Supabase Auth (Google clientes, teléfono+contraseña personal, hash real — hoy las contraseñas del personal van en texto plano en la tabla, solo aceptable para demo), endurecer RLS por rol.
+- Post-auth: notificaciones push PWA, OTP para delivery, canje de puntos, TanStack Query (paso 4 de ARCHITECTURE §6, opcional).
 
 ## Estado del repo
-Rama `main`. Las 6 vistas de rol están completas y cableadas al store (incluida la suite de admin: reservas, pedidos, mesas, menú, personal, clientes, reportes). Todo mock/localStorage — sin backend aún. Commitear/pushear solo cuando el usuario lo pida.
+Rama `main`. Las 6 vistas de rol completas y cableadas a Supabase con realtime. Commitear/pushear solo cuando el usuario lo pida (push a main = deploy automático en Vercel).

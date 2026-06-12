@@ -7,6 +7,8 @@
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Zustand](https://img.shields.io/badge/Zustand-5-orange)](https://github.com/pmndrs/zustand)
+[![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Realtime-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+[![CI](https://github.com/YoelCanaza/restaurant-booking-pwa/actions/workflows/ci.yml/badge.svg)](https://github.com/YoelCanaza/restaurant-booking-pwa/actions/workflows/ci.yml)
 [![Deploy](https://img.shields.io/badge/Vercel-Live-black?logo=vercel)](https://restaurant-booking-pwa.vercel.app/)
 
 **[Ver demo en vivo →](https://restaurant-booking-pwa.vercel.app/)**
@@ -110,7 +112,8 @@ Tipografía: **Fraunces** (display/títulos) + **Inter** (body) — ambas self-h
 React 19 + TypeScript
 Vite 8                    — build y dev server
 Tailwind CSS 4            — estilos vía @tailwindcss/vite
-Zustand 5 + Immer         — estado global con persistencia en localStorage
+Zustand 5 + Immer         — estado global (caché de cliente)
+Supabase                  — Postgres + Realtime (backend en producción)
 React Router 7            — ruteo por rol con ProtectedRoute
 Framer Motion             — microinteracciones y transiciones
 Lucide React              — iconografía consistente
@@ -118,7 +121,29 @@ Lucide React              — iconografía consistente
 vite-plugin-pwa           — manifiesto y service worker
 ```
 
-Backend objetivo (roadmap): **Supabase** (Postgres + Auth + Realtime + Storage). Hoy el estado es mock en memoria.
+---
+
+## Backend (Supabase)
+
+La app corre contra **Postgres en Supabase** con sincronización **en tiempo real entre dispositivos**: la comanda que el mesero envía desde su celular aparece al instante en la pantalla de cocina, y el cobro del cajero libera la mesa en todos los equipos conectados.
+
+```
+┌─ Pantallas (sin cambios) ─┐
+│  leen del store Zustand   │
+└────────────┬──────────────┘
+             │
+┌────────────▼──────────────┐    escrituras (cola serializada)
+│  Acciones del store       │ ──────────────► src/lib/db.ts ───► Supabase
+│  (validan + mutan local)  │                                   Postgres
+└────────────▲──────────────┘                                    + RLS
+             │  hidratación inicial + realtime
+             └────────────────── src/lib/sync.ts ◄─── postgres_changes
+```
+
+- **Esquema**: 7 tablas en [supabase/schema.sql](supabase/schema.sql) (idempotente: re-ejecutarlo en el SQL Editor resetea la demo al estado semilla).
+- **RLS activado** en todas las tablas (políticas de demo; se endurecen con la fase Auth).
+- **Escrituras en cola serializada**: garantiza el orden de las claves foráneas (usuario → reserva, pedido → ítems).
+- Si una escritura falla, la app notifica y se **re-sincroniza sola** con el servidor.
 
 ---
 
@@ -128,14 +153,33 @@ Backend objetivo (roadmap): **Supabase** (Postgres + Auth + Realtime + Storage).
 git clone https://github.com/YoelCanaza/restaurant-booking-pwa.git
 cd restaurant-booking-pwa
 npm install
-npm run dev        # http://localhost:5173
+cp .env.example .env   # completar con las credenciales de tu proyecto Supabase
+npm run dev            # http://localhost:5173
 ```
+
+> Sin `.env` la app no arranca: necesita `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`
+> (Supabase Dashboard → Settings → API). Aplica antes [supabase/schema.sql](supabase/schema.sql)
+> en el SQL Editor de tu proyecto.
 
 ```bash
 npm run build      # producción
 npm run preview    # previsualizar build
 npm run lint       # eslint
 ```
+
+---
+
+## Guía de demostración (multi-dispositivo)
+
+1. Abre la [demo en vivo](https://restaurant-booking-pwa.vercel.app/) en **dos dispositivos** (o dos navegadores).
+2. En el primero entra a `/demo` → **Mesero**; en el segundo → **Cocina**.
+3. Mesero: toca una mesa libre → **Nueva Comanda** → envía a cocina.
+4. Cocina: el ticket **aparece solo** (sin recargar). Arrástralo a *Preparando* → *Listo*.
+5. Mesero: la mesa parpadea "Listo para servir" → **Marcar Servido** → **Ver pre-cuenta** → enviar a caja.
+6. Un tercer dispositivo como **Cajero** ve la cuenta llegar a su cola → cobra → la mesa se libera en todos.
+
+Acceso del personal (login real contra la base): teléfono del empleado + contraseña `demo1234`.
+Para **resetear la demo** a los datos semilla: re-ejecutar `supabase/schema.sql` en el SQL Editor.
 
 ---
 
@@ -161,7 +205,12 @@ src/
 ├── types/index.ts       # Tipos canónicos del dominio
 └── lib/
     ├── estados.ts        # Colores y etiquetas de estado (fuente única)
-    └── supabase.ts       # Cliente futuro (roadmap)
+    ├── supabase.ts       # Cliente Supabase (env vars)
+    ├── adapters.ts       # Mapeo filas Postgres ↔ tipos del dominio
+    ├── db.ts             # Escrituras write-through (cola serializada)
+    └── sync.ts           # Hidratación inicial + suscripción realtime
+supabase/
+└── schema.sql            # Esquema + RLS + seed (aplicar en SQL Editor)
 ```
 
 ---
