@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 import type { User, UserRole } from '../types'
+import { dbUpsertUsuario, dbUpdateUsuario } from '../lib/db'
 
 // ─── USUARIOS MOCK ────────────────────────────────────────────
 const now = new Date().toISOString()
@@ -201,6 +202,7 @@ export const useAuthStore = create<AuthState>()(
           if (u) { u.password = nuevaPassword.trim(); u.debeCambiarPassword = false }
           if (s.user) { s.user.password = nuevaPassword.trim(); s.user.debeCambiarPassword = false }
         })
+        void dbUpdateUsuario(actual.id, { password: nuevaPassword.trim(), debe_cambiar_password: false })
         return { ok: true }
       },
 
@@ -247,6 +249,7 @@ export const useAuthStore = create<AuthState>()(
         }
 
         set((s) => { s.users.push(nuevoEmpleado) })
+        void dbUpsertUsuario(nuevoEmpleado)
         return { ok: true }
       },
 
@@ -270,6 +273,8 @@ export const useAuthStore = create<AuthState>()(
           const u = s.users.find((u) => u.id === userId)
           if (u) u.activo = !u.activo
         })
+        const actualizado = get().users.find((u) => u.id === userId)
+        if (actualizado) void dbUpdateUsuario(userId, { activo: actualizado.activo })
 
         return { ok: true }
       },
@@ -292,6 +297,7 @@ export const useAuthStore = create<AuthState>()(
           const u = s.users.find((u) => u.id === userId)
           if (u) u.role = nuevoRol
         })
+        void dbUpdateUsuario(userId, { role: nuevoRol })
 
         return { ok: true }
       },
@@ -331,6 +337,7 @@ export const useAuthStore = create<AuthState>()(
         }
 
         set((s) => { s.users.push(nuevoCliente) })
+        void dbUpsertUsuario(nuevoCliente)
 
         // Auto-login después del registro
         set({ user: nuevoCliente })
@@ -362,6 +369,9 @@ export const useAuthStore = create<AuthState>()(
           createdAt: new Date().toISOString(),
         }
         set((s) => { s.users.push(nuevoCliente) })
+        // Push a DB ANTES de que el llamador cree la reserva/pedido (la cola
+        // serializada de db.ts garantiza el orden usuario → reserva para la FK)
+        void dbUpsertUsuario(nuevoCliente)
         set({ user: nuevoCliente })
         return { ok: true, userId: nuevoCliente.id }
       },

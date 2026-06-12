@@ -15,6 +15,17 @@ import type {
   UserRole,
 } from '../types'
 import { EVENTOS_PERSISTENTES } from '../types'
+import {
+  dbInsertLog,
+  dbInsertPedido,
+  dbUpdatePedido,
+  dbInsertReserva,
+  dbUpdateReserva,
+  dbUpdateMesa,
+  dbUpsertPlato,
+  dbUpdatePlato,
+  dbDeletePlato,
+} from '../lib/db'
 
 // ═══════════════════════════════════════════════════════════════
 // HELPERS
@@ -475,25 +486,28 @@ export const useAppStore = create<AppState>()(
       // ─────────────────────────────────────────────────────────
       // REGISTRO DE ACTIVIDAD
       // ─────────────────────────────────────────────────────────
-      logActivity: (tipo, actorId, actorRole, entidadId, datos) =>
+      logActivity: (tipo, actorId, actorRole, entidadId, datos) => {
+        const persistido = EVENTOS_PERSISTENTES.has(tipo)
+        const log: ActivityLog = {
+          id: generateId('log'),
+          tipo,
+          actorId,
+          actorRole,
+          entidadId,
+          datos,
+          timestamp: nowISO(),
+          persistido,
+        }
         set((state) => {
-          const persistido = EVENTOS_PERSISTENTES.has(tipo)
-          const log: ActivityLog = {
-            id: generateId('log'),
-            tipo,
-            actorId,
-            actorRole,
-            entidadId,
-            datos,
-            timestamp: nowISO(),
-            persistido,
-          }
           state.activityLogs.push(log)
           // Buffer circular: mantener solo los últimos MAX_LOGS
           if (state.activityLogs.length > MAX_LOGS) {
             state.activityLogs.splice(0, state.activityLogs.length - MAX_LOGS)
           }
-        }),
+        })
+        // Los eventos de negocio críticos van a la tabla activity_logs
+        if (persistido) void dbInsertLog(log)
+      },
 
       // ─────────────────────────────────────────────────────────
       // CARRITO (Delivery)
@@ -560,6 +574,7 @@ export const useAppStore = create<AppState>()(
         }
 
         set((s) => { s.reservas.push(nuevaReserva) })
+        void dbInsertReserva(nuevaReserva)
         get().logActivity('reserva_creada', actorId, 'cliente', nuevaReserva.id, {
           fecha: nuevaReserva.fecha,
           hora: nuevaReserva.hora,
@@ -569,25 +584,30 @@ export const useAppStore = create<AppState>()(
         return { ok: true }
       },
 
-      updateReservaEstado: (reservaId, estado, actorId, actorRole, motivo) =>
+      updateReservaEstado: (reservaId, estado, actorId, actorRole, motivo) => {
+        const existe = get().reservas.some((r) => r.id === reservaId)
+        if (!existe) return
+        const estadoAnterior = get().reservas.find((r) => r.id === reservaId)!.estado
         set((state) => {
           const r = state.reservas.find((r) => r.id === reservaId)
           if (!r) return
-          const estadoAnterior = r.estado
           r.estado = estado
           if (estado === 'cancelada') {
             r.canceladoAt = nowISO()
             r.motivoCancelacion = motivo
           }
-          get().logActivity(
-            estado === 'confirmada' ? 'reserva_confirmada' : 'reserva_cancelada',
-            actorId,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            actorRole as any,
-            reservaId,
-            { estadoAnterior, motivo }
-          )
-        }),
+        })
+        const actualizada = get().reservas.find((r) => r.id === reservaId)
+        if (actualizada) void dbUpdateReserva(actualizada)
+        get().logActivity(
+          estado === 'confirmada' ? 'reserva_confirmada' : 'reserva_cancelada',
+          actorId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          actorRole as any,
+          reservaId,
+          { estadoAnterior, motivo }
+        )
+      },
 
       cancelarReservaCliente: (reservaId, clienteId) => {
         const state = get()
@@ -627,6 +647,15 @@ export const useAppStore = create<AppState>()(
           }
         })
 
+        const cancelada = get().reservas.find((r) => r.id === reservaId)
+        if (cancelada) {
+          void dbUpdateReserva(cancelada)
+          if (cancelada.mesaId) {
+            const mesa = get().mesas.find((m) => m.id === cancelada.mesaId)
+            if (mesa) void dbUpdateMesa(mesa)
+          }
+        }
+
         get().logActivity('reserva_cancelada', clienteId, 'cliente', reservaId, {
           horasDeAntelacion: diffHoras.toFixed(2),
         })
@@ -634,7 +663,7 @@ export const useAppStore = create<AppState>()(
         return { ok: true }
       },
 
-      marcarNoShow: (reservaId, adminId) =>
+      marcarNoShow: (reservaId, adminId) => {
         set((state) => {
           const r = state.reservas.find((r) => r.id === reservaId)
           if (!r) return
@@ -649,12 +678,20 @@ export const useAppStore = create<AppState>()(
               mesa.reservaId = undefined
             }
           }
-          get().logActivity('no_show_registrado', adminId, 'admin', reservaId, {
-            userId: r.userId,
-            fecha: r.fecha,
-            hora: r.hora,
-          })
-        }),
+        })
+        const r = get().reservas.find((r) => r.id === reservaId)
+        if (!r) return
+        void dbUpdateReserva(r)
+        if (r.mesaId) {
+          const mesa = get().mesas.find((m) => m.id === r.mesaId)
+          if (mesa) void dbUpdateMesa(mesa)
+        }
+        get().logActivity('no_show_registrado', adminId, 'admin', reservaId, {
+          userId: r.userId,
+          fecha: r.fecha,
+          hora: r.hora,
+        })
+      },
 
       // ─────────────────────────────────────────────────────────
       // PEDIDOS DELIVERY
@@ -705,6 +742,7 @@ export const useAppStore = create<AppState>()(
         }
 
         set((s) => { s.pedidos.push(nuevoPedido) })
+        void dbInsertPedido(nuevoPedido)
         get().logActivity('pedido_creado', actorId, 'cliente', nuevoPedido.id, {
           tipo: 'delivery',
           total: nuevoPedido.total,
@@ -714,11 +752,14 @@ export const useAppStore = create<AppState>()(
         return { ok: true }
       },
 
-      updatePedidoEstado: (pedidoId, estado, actorId, actorRole) =>
+      updatePedidoEstado: (pedidoId, estado, actorId, actorRole) => {
+        const pedidoPrevio = get().pedidos.find((p) => p.id === pedidoId)
+        if (!pedidoPrevio) return
+        const estadoAnterior = pedidoPrevio.estado
+
         set((state) => {
           const p = state.pedidos.find((p) => p.id === pedidoId)
           if (!p) return
-          const estadoAnterior = p.estado
           p.estado = estado
           p.updatedAt = nowISO()
 
@@ -731,25 +772,38 @@ export const useAppStore = create<AppState>()(
               else if (estado === 'servido') mesa.estado = 'comiendo'
             }
           }
+        })
 
-          get().logActivity(
-            'pedido_estado_cambiado',
-            actorId,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            actorRole as any,
-            pedidoId,
-            { estadoAnterior, estadoNuevo: estado }
-          )
-        }),
+        const p = get().pedidos.find((p) => p.id === pedidoId)
+        if (p) {
+          void dbUpdatePedido(p)
+          if (p.tipo === 'salon' && p.mesaId) {
+            const mesa = get().mesas.find((m) => m.id === p.mesaId)
+            if (mesa) void dbUpdateMesa(mesa)
+          }
+        }
 
-      asignarDelivery: (pedidoId, deliveryId) =>
+        get().logActivity(
+          'pedido_estado_cambiado',
+          actorId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          actorRole as any,
+          pedidoId,
+          { estadoAnterior, estadoNuevo: estado }
+        )
+      },
+
+      asignarDelivery: (pedidoId, deliveryId) => {
         set((state) => {
           const p = state.pedidos.find((p) => p.id === pedidoId)
           if (p) {
             p.deliveryId = deliveryId
             p.updatedAt = nowISO()
           }
-        }),
+        })
+        const p = get().pedidos.find((p) => p.id === pedidoId)
+        if (p) void dbUpdatePedido(p)
+      },
 
       cancelarPedidoDelivery: (pedidoId, actorId, actorRole, forzar = false) => {
         const state = get()
@@ -773,6 +827,9 @@ export const useAppStore = create<AppState>()(
             p.updatedAt = nowISO()
           }
         })
+
+        const cancelado = get().pedidos.find((p) => p.id === pedidoId)
+        if (cancelado) void dbUpdatePedido(cancelado)
 
         get().logActivity(
           'pedido_cancelado',
@@ -848,6 +905,10 @@ export const useAppStore = create<AppState>()(
           }
         })
 
+        void dbInsertPedido(nuevoPedido)
+        const mesaActualizada = get().mesas.find((m) => m.id === mesaId)
+        if (mesaActualizada) void dbUpdateMesa(mesaActualizada)
+
         get().logActivity('pedido_creado', meseroId, 'mesero', nuevoPedido.id, {
           tipo: 'salon',
           mesaId,
@@ -866,6 +927,8 @@ export const useAppStore = create<AppState>()(
           const m = s.mesas.find((m) => m.id === mesaId)
           if (m) m.estado = 'ocupada'
         })
+        const m = get().mesas.find((m) => m.id === mesaId)
+        if (m) void dbUpdateMesa(m)
         return { ok: true }
       },
 
@@ -898,6 +961,7 @@ export const useAppStore = create<AppState>()(
           updatedAt: nowISO(),
         }
         set((s) => { s.pedidos.push(nuevoPedido) })
+        void dbInsertPedido(nuevoPedido)
         get().logActivity('pedido_creado', meseroId, 'mesero', nuevoPedido.id, {
           tipo: 'salon_adicional',
           mesaId,
@@ -907,7 +971,7 @@ export const useAppStore = create<AppState>()(
         return { ok: true }
       },
 
-      solicitarCuenta: (pedidoId) =>
+      solicitarCuenta: (pedidoId) => {
         set((state) => {
           const p = state.pedidos.find((p) => p.id === pedidoId)
           if (!p) return
@@ -918,7 +982,15 @@ export const useAppStore = create<AppState>()(
             if (mesa) mesa.estado = 'pagando'
           }
           p.updatedAt = nowISO()
-        }),
+        })
+        const p = get().pedidos.find((p) => p.id === pedidoId)
+        if (!p) return
+        void dbUpdatePedido(p)
+        if (p.mesaId) {
+          const mesa = get().mesas.find((m) => m.id === p.mesaId)
+          if (mesa) void dbUpdateMesa(mesa)
+        }
+      },
 
       procesarPago: (pedidoId, metodoPago, cajeroId) => {
         const state = get()
@@ -955,6 +1027,15 @@ export const useAppStore = create<AppState>()(
           }
         })
 
+        const pagado = get().pedidos.find((p) => p.id === pedidoId)
+        if (pagado) {
+          void dbUpdatePedido(pagado)
+          if (pagado.mesaId) {
+            const mesa = get().mesas.find((m) => m.id === pagado.mesaId)
+            if (mesa) void dbUpdateMesa(mesa)
+          }
+        }
+
         get().logActivity('pago_procesado', cajeroId, 'caja', pedidoId, {
           total: pedido.total,
           metodoPago,
@@ -967,49 +1048,62 @@ export const useAppStore = create<AppState>()(
       // ─────────────────────────────────────────────────────────
       // MESAS
       // ─────────────────────────────────────────────────────────
-      updateMesaEstado: (mesaId, estado, extra) =>
+      updateMesaEstado: (mesaId, estado, extra) => {
         set((state) => {
           const m = state.mesas.find((m) => m.id === mesaId)
           if (!m) return
           m.estado = estado
           if (extra?.reservaId !== undefined) m.reservaId = extra.reservaId
           if (extra?.pedidoId !== undefined) m.pedidoId = extra.pedidoId
-        }),
+        })
+        const m = get().mesas.find((m) => m.id === mesaId)
+        if (m) void dbUpdateMesa(m)
+      },
 
       // ─────────────────────────────────────────────────────────
       // MENÚ (ADMIN)
       // ─────────────────────────────────────────────────────────
-      togglePlatoDisponible: (platoId, actorId, actorRole) =>
+      togglePlatoDisponible: (platoId, actorId, actorRole) => {
         set((state) => {
           const p = state.platos.find((p) => p.id === platoId)
-          if (!p) return
-          p.disponible = !p.disponible
-          get().logActivity(
-            'plato_disponibilidad_cambiada',
-            actorId,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            actorRole as any,
-            platoId,
-            { disponible: p.disponible, nombre: p.nombre }
-          )
-        }),
+          if (p) p.disponible = !p.disponible
+        })
+        const p = get().platos.find((p) => p.id === platoId)
+        if (!p) return
+        void dbUpdatePlato(platoId, { disponible: p.disponible })
+        get().logActivity(
+          'plato_disponibilidad_cambiada',
+          actorId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          actorRole as any,
+          platoId,
+          { disponible: p.disponible, nombre: p.nombre }
+        )
+      },
 
-      updatePlatoPrecio: (platoId, precio) =>
+      updatePlatoPrecio: (platoId, precio) => {
         set((state) => {
           const p = state.platos.find((x) => x.id === platoId)
           if (p) p.precio = precio
-        }),
+        })
+        void dbUpdatePlato(platoId, { precio })
+      },
 
-      addPlato: (plato) =>
+      addPlato: (plato) => {
         set((state) => {
           state.platos.push(plato)
-        }),
+        })
+        void dbUpsertPlato(plato)
+      },
 
-      updatePlato: (platoId, datos) =>
+      updatePlato: (platoId, datos) => {
         set((state) => {
           const p = state.platos.find((x) => x.id === platoId)
           if (p) Object.assign(p, datos)
-        }),
+        })
+        const p = get().platos.find((x) => x.id === platoId)
+        if (p) void dbUpsertPlato(p)
+      },
 
       eliminarPlato: (platoId) => {
         // Bloquea si hay un pedido activo (no pagado/entregado/cancelado) que lo incluye
@@ -1022,6 +1116,7 @@ export const useAppStore = create<AppState>()(
           return { ok: false, error: 'No se puede eliminar: hay pedidos activos que lo incluyen.' }
         }
         set((state) => { state.platos = state.platos.filter((x) => x.id !== platoId) })
+        void dbDeletePlato(platoId)
         return { ok: true }
       },
 
@@ -1080,28 +1175,23 @@ export const useAppStore = create<AppState>()(
     })),
     {
       name: 'rincon-andino-app',
-      // Subir la versión cuando cambian los datos semilla (p.ej. imágenes del
-      // catálogo). La migración descarta el catálogo persistido para que se
-      // tomen los MOCK_PLATOS frescos del código; conserva reservas/pedidos.
-      version: 6,
+      // v7: el dominio (platos/mesas/reservas/pedidos/logs) vive en Supabase
+      // y se hidrata al arrancar (src/lib/sync.ts). localStorage solo guarda
+      // el carrito (return path del invitado, BUSINESS_LOGIC §3.4).
+      version: 7,
       migrate: (persisted) => {
-        // Descarta catálogo, mesas y pedidos para tomar los MOCK_* frescos.
         const p = persisted as Record<string, unknown> | undefined
         if (p) {
           delete p.platos
           delete p.mesas
+          delete p.reservas
           delete p.pedidos
+          delete p.activityLogs
         }
         return p as unknown as AppState
       },
-      // Solo persistir los eventos de negocio críticos y datos de dominio
       partialize: (state) => ({
-        platos: state.platos,
-        mesas: state.mesas,
-        reservas: state.reservas,
-        pedidos: state.pedidos,
-        // Solo guardar los logs marcados como persistentes
-        activityLogs: state.activityLogs.filter((l) => l.persistido),
+        cart: state.cart,
       }),
     }
   )
